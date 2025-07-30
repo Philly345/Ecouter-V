@@ -1,0 +1,441 @@
+import Head from 'next/head';
+import { useState, useCallback, useEffect } from 'react';
+import { useRouter } from 'next/router';
+import { useDropzone } from 'react-dropzone';
+import Sidebar from '../components/Sidebar';
+import Modal from '../components/Modal';
+import { 
+  FiUpload, 
+  FiFile, 
+  FiX, 
+  FiPlay,
+  FiSettings,
+  FiInfo,
+  FiCheck,
+  FiClock,
+  FiUserPlus,
+  FiClock as FiClockIcon,
+  FiFilter,
+  FiType
+} from 'react-icons/fi';
+
+export default function Upload({ user }) {
+  const router = useRouter();
+  const [selectedFiles, setSelectedFiles] = useState([]);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploading, setUploading] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showFormats, setShowFormats] = useState(false);
+  const [processingEstimate, setProcessingEstimate] = useState('~1 min');
+  const [settings, setSettings] = useState({
+    language: 'en',
+    quality: 'standard',
+    speakerIdentification: false,
+    includeTimestamps: true,
+    filterProfanity: false,
+    autoPunctuation: true,
+  });
+
+  useEffect(() => {
+    if (!user) {
+      router.push('/login');
+    }
+  }, [user, router]);
+
+  const onDrop = useCallback((acceptedFiles, rejectedFiles) => {
+    if (rejectedFiles.length > 0) {
+      alert('File type not supported or file too large (max 500MB)');
+      return;
+    }
+    
+    if (acceptedFiles.length > 0) {
+      setSelectedFiles(acceptedFiles);
+      
+      // Calculate processing estimate based on file size
+      const totalSizeInMB = acceptedFiles.reduce((acc, file) => acc + file.size / (1024 * 1024), 0);
+      if (totalSizeInMB < 20) {
+        setProcessingEstimate('~1 min');
+      } else if (totalSizeInMB < 50) {
+        setProcessingEstimate('~2 mins');
+      } else {
+        setProcessingEstimate('2-5 mins');
+      }
+    }
+  }, []);
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'audio/*': ['.mp3', '.wav', '.m4a', '.flac', '.aac'],
+      'video/*': ['.mp4', '.mov', '.avi', '.mkv', '.wmv', '.webm'],
+    },
+    maxSize: 500 * 1024 * 1024, // 500MB
+    multiple: false,
+  });
+
+  const handleUpload = async () => {
+    if (!selectedFiles || selectedFiles.length === 0) return;
+
+    setUploading(true);
+    setUploadProgress(0);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedFiles[0]); // For now, just upload the first file
+      formData.append('language', settings.language);
+      formData.append('quality', settings.quality);
+      formData.append('speakerIdentification', settings.speakerIdentification);
+      formData.append('includeTimestamps', settings.includeTimestamps);
+      formData.append('filterProfanity', settings.filterProfanity);
+      formData.append('autoPunctuation', settings.autoPunctuation);
+
+      const token = localStorage.getItem('token');
+      
+      // Simulate progress
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return prev;
+          }
+          return prev + Math.random() * 10;
+        });
+      }, 200);
+
+      const response = await fetch('/api/transcribe', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+
+      if (response.ok) {
+        const data = await response.json();
+        setTimeout(() => {
+          router.push('/files/processing');
+        }, 1000);
+      } else {
+        const errorData = await response.json();
+        alert(errorData.error || 'Upload failed');
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      alert('Upload failed. Please try again.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const removeFile = (index) => {
+    const newFiles = [...selectedFiles];
+    newFiles.splice(index, 1);
+    setSelectedFiles(newFiles);
+    
+    if (newFiles.length === 0) {
+      setUploadProgress(0);
+    }
+  };
+
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const getEstimatedTime = (file) => {
+    if (!file) return '';
+    // Rough estimation: 2-5 minutes per hour of audio
+    const fileSizeMB = file.size / (1024 * 1024);
+    const estimatedMinutes = Math.round((fileSizeMB / 100) * 5); // Very rough estimate
+    return estimatedMinutes > 0 ? `${estimatedMinutes}-${estimatedMinutes * 2} minutes` : '2-5 minutes';
+  };
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="spinner w-8 h-8"></div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <Head>
+        <title>Upload File - TranscribeAI</title>
+        <meta name="description" content="Upload your audio or video file for AI-powered transcription." />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+      </Head>
+
+      <div className="min-h-screen bg-black text-white">
+        <Sidebar user={user} currentPage="upload" />
+        
+        <div className="lg:ml-64 p-6">
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="text-2xl font-bold gradient-text mb-2">TranscribeAI</h1>
+            <p className="text-white/60">
+              Upload your audio or video file to start transcription
+            </p>
+          </div>
+
+          {/* Main Content Area with Upload and Settings */}
+          <div className="flex flex-col lg:flex-row gap-6">
+            {/* Left Column - Upload Area */}
+            <div className="lg:w-3/5 w-full">
+              <div
+                {...getRootProps()}
+                className={`border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-all duration-300 ${
+                  isDragActive 
+                    ? 'border-blue-400 bg-blue-500/10' 
+                    : 'border-white/20 hover:border-white/40 hover:bg-white/5'
+                }`}
+              >
+                <input {...getInputProps()} />
+                <div className="flex flex-col items-center justify-center">
+                  <div className="h-20 w-20 rounded-full bg-white/10 flex items-center justify-center mb-4">
+                    <FiUpload className="w-10 h-10 text-white/60" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-white mb-2">
+                    {isDragActive ? 'Drop your file here' : 'Drag & drop files here, or click to select'}
+                  </h3>
+                  <p className="text-white/60 mb-4">Supports audio and video files up to 500MB</p>
+                </div>
+              </div>
+
+              {/* Selected Files */}
+              {selectedFiles.length > 0 && (
+                <div className="mt-6">
+                  <h3 className="text-lg font-semibold mb-3">Selected Files</h3>
+                  <div className="space-y-3">
+                    {selectedFiles.map((file, index) => (
+                      <div key={index} className="bg-white/5 rounded-lg p-4 flex justify-between items-center">
+                        <div className="flex items-center">
+                          <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center mr-3">
+                            <FiFile className="w-5 h-5 text-blue-400" />
+                          </div>
+                          <div>
+                            <p className="text-white text-sm font-medium">{file.name}</p>
+                            <p className="text-xs text-white/60">{formatFileSize(file.size)}</p>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={() => removeFile(index)}
+                          className="text-white/60 hover:text-red-400"
+                          aria-label="Remove file"
+                        >
+                          <FiX className="w-5 h-5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* Right Column - Settings */}
+            <div className="lg:w-2/5 w-full space-y-6">
+              <div className="bg-white/5 rounded-xl p-6">
+                <h3 className="text-lg font-semibold mb-4">Language & Quality</h3>
+                
+                {/* Language Dropdown */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-white/80 mb-2">
+                    Language
+                  </label>
+                  <select
+                    value={settings.language}
+                    onChange={(e) => setSettings({...settings, language: e.target.value})}
+                    className="form-input w-full py-2 px-3 bg-white/10 border border-white/20 rounded-lg text-white"
+                  >
+                    <option value="en">English</option>
+                    <option value="es">Spanish</option>
+                    <option value="fr">French</option>
+                    <option value="de">German</option>
+                    <option value="it">Italian</option>
+                    <option value="pt">Portuguese</option>
+                    <option value="zh">Chinese</option>
+                    <option value="ja">Japanese</option>
+                    <option value="ko">Korean</option>
+                  </select>
+                </div>
+                
+                {/* Quality Dropdown */}
+                <div>
+                  <label className="block text-sm font-medium text-white/80 mb-2">
+                    Quality
+                  </label>
+                  <select
+                    value={settings.quality}
+                    onChange={(e) => setSettings({...settings, quality: e.target.value})}
+                    className="form-input w-full py-2 px-3 bg-white/10 border border-white/20 rounded-lg text-white"
+                  >
+                    <option value="standard">Standard</option>
+                    <option value="high">High</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Additional Options */}
+              <div className="bg-white/5 rounded-xl p-6">
+                <h3 className="text-lg font-semibold mb-4">Additional Options</h3>
+                
+                <div className="space-y-3">
+                  <label className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <FiUserPlus className="w-4 h-4 mr-2 text-white/60" />
+                      <span className="text-sm">Speaker Identification</span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={settings.speakerIdentification}
+                      onChange={(e) => setSettings({...settings, speakerIdentification: e.target.checked})}
+                      className="toggle"
+                    />
+                  </label>
+
+                  <label className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <FiClockIcon className="w-4 h-4 mr-2 text-white/60" />
+                      <span className="text-sm">Include Timestamps</span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={settings.includeTimestamps}
+                      onChange={(e) => setSettings({...settings, includeTimestamps: e.target.checked})}
+                      className="toggle"
+                    />
+                  </label>
+
+                  <label className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <FiFilter className="w-4 h-4 mr-2 text-white/60" />
+                      <span className="text-sm">Filter Profanity</span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={settings.filterProfanity}
+                      onChange={(e) => setSettings({...settings, filterProfanity: e.target.checked})}
+                      className="toggle"
+                    />
+                  </label>
+
+                  <label className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <FiType className="w-4 h-4 mr-2 text-white/60" />
+                      <span className="text-sm">Auto-punctuation</span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={settings.autoPunctuation}
+                      onChange={(e) => setSettings({...settings, autoPunctuation: e.target.checked})}
+                      className="toggle"
+                    />
+                  </label>
+                </div>
+              </div>
+
+              {/* Processing Time Estimate */}
+              <div className="bg-white/5 rounded-xl p-6">
+                <div className="flex items-center space-x-2 mb-2">
+                  <FiClock className="w-5 h-5 text-white/60" />
+                  <h3 className="text-lg font-semibold">Processing Estimate</h3>
+                </div>
+                
+                <div className="flex items-center justify-center py-4">
+                  <div className="text-2xl font-bold">{processingEstimate}</div>
+                </div>
+                
+                <p className="text-xs text-white/60 text-center">
+                  Estimated processing time<br />
+                  2-5 minutes per hour of audio
+                </p>
+              </div>
+
+              {/* Transcribe Button */}
+              <button
+                onClick={handleUpload}
+                disabled={uploading || selectedFiles.length === 0}
+                className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800/50 rounded-lg text-white font-medium transition-colors flex items-center justify-center"
+              >
+                {uploading ? (
+                  <>
+                    <div className="spinner w-4 h-4 mr-2"></div>
+                    <span>Transcribing...</span>
+                  </>
+                ) : (
+                  <>
+                    <FiPlay className="w-4 h-4 mr-2" />
+                    <span>Start Transcription</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+          
+          {/* Upload Progress */}
+          {uploading && selectedFiles.length > 0 && (
+              <div className="max-w-2xl mx-auto mt-8">
+                <div className="progress-bar h-4 rounded-full bg-white/10 mb-2">
+                  <div 
+                    className="progress-fill h-full rounded-full transition-all duration-300 bg-blue-600"
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-white/80">Uploading file...</span>
+                  <span className="text-white/60">{Math.round(uploadProgress)}%</span>
+                </div>
+              </div>
+            )}
+            
+            {/* Supported Formats Modal */}
+            <Modal
+              isOpen={showFormats}
+              onClose={() => setShowFormats(false)}
+              title="Supported File Formats"
+              maxWidth="max-w-2xl"
+            >
+              <div className="space-y-6">
+                <div>
+                  <h4 className="font-semibold text-white mb-3 flex items-center space-x-2">
+                    <FiFile className="w-4 h-4" />
+                    <span>Audio Formats</span>
+                  </h4>
+                  <div className="grid grid-cols-3 gap-2">
+                    {['MP3', 'WAV', 'M4A', 'FLAC', 'AAC', 'OGG'].map(format => (
+                      <span key={format} className="px-3 py-1 bg-white/10 rounded text-sm text-center">
+                        {format}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="font-semibold text-white mb-3 flex items-center space-x-2">
+                    <FiPlay className="w-4 h-4" />
+                    <span>Video Formats</span>
+                  </h4>
+                  <div className="grid grid-cols-3 gap-2">
+                    {['MP4', 'MOV', 'AVI', 'MKV', 'WMV', 'WEBM'].map(format => (
+                      <span key={format} className="px-3 py-1 bg-white/10 rounded text-sm text-center">
+                        {format}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </Modal>
+
+
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
