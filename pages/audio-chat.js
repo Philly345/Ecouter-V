@@ -197,6 +197,235 @@ export default function AudioChat() {
     }
   };
 
+  // Handle file drop for upload
+  const onDrop = useCallback(acceptedFiles => {
+    // Validate file size (max 500MB)
+    const validFiles = acceptedFiles.filter(file => file.size <= 500 * 1024 * 1024);
+    
+    if (validFiles.length < acceptedFiles.length) {
+      toast.error('Some files exceeded the 500MB limit and were removed');
+    }
+    
+    setSelectedUploadFiles(validFiles);
+    
+    // Set processing estimate based on file size
+    if (validFiles.length > 0) {
+      const totalSize = validFiles.reduce((sum, file) => sum + file.size, 0);
+      const minutes = Math.max(1, Math.ceil(totalSize / (1024 * 1024) / 2));
+      setProcessingEstimate(minutes === 1 ? '~1 min' : `~${minutes} mins`);
+    }
+  }, []);
+  
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({ 
+    onDrop,
+    accept: {
+      'audio/*': [],
+      'video/*': []
+    }
+  });
+  
+  // Format file size (KB, MB, GB)
+  const formatFileSize = (bytes) => {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    return (bytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
+  };
+  
+  // Calculate estimated audio length based on file size
+  const calculateAudioLength = (bytes) => {
+    // Rough estimate: ~1MB per minute for medium quality audio
+    const minutes = Math.max(1, Math.round(bytes / (1024 * 1024)));
+    if (minutes < 60) {
+      return `~${minutes} min${minutes !== 1 ? 's' : ''}`;
+    } else {
+      const hours = Math.floor(minutes / 60);
+      const remainingMins = minutes % 60;
+      return `~${hours} hr${hours !== 1 ? 's' : ''}${remainingMins > 0 ? ` ${remainingMins} min${remainingMins !== 1 ? 's' : ''}` : ''}`;
+    }
+  };
+  
+  // Get upload method based on file size
+  const getUploadMethod = (bytes) => {
+    return bytes < 4 * 1024 * 1024 ? 'Standard Upload' : 'Direct Upload';
+  };
+  
+  // Get color for upload method display
+  const getUploadMethodColor = (bytes) => {
+    return bytes < 4 * 1024 * 1024 ? 'text-green-400' : 'text-blue-400';
+  };
+  
+  // Handle file upload
+  const handleUpload = async () => {
+    if (selectedUploadFiles.length === 0 || uploading) return;
+    
+    setUploading(true);
+    setUploadProgress(0);
+    
+    try {
+      // Process each file
+      for (let i = 0; i < selectedUploadFiles.length; i++) {
+        const file = selectedUploadFiles[i];
+        const progressStart = (i / selectedUploadFiles.length) * 100;
+        const progressEnd = ((i + 1) / selectedUploadFiles.length) * 100;
+        
+        // Determine upload method based on file size
+        if (file.size > 4 * 1024 * 1024) {
+          // Large file upload (>4MB): Use presigned URL method
+          await handleLargeFileUpload(file, progressStart, progressEnd);
+        } else {
+          // Small file upload (<4MB): Use direct upload to API
+          await handleSmallFileUpload(file, progressStart, progressEnd);
+        }
+      }
+      
+      // Success
+      toast.success('Files uploaded successfully!');
+      setShowUploadModal(false);
+      setSelectedUploadFiles([]);
+      setUploadProgress(0);
+      
+      // Refresh file list
+      fetchUserFiles();
+      
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error('Upload failed: ' + (error.message || 'Unknown error'));
+    } finally {
+      setUploading(false);
+    }
+  };
+  
+  // Handle large file upload (>4MB) using presigned URL
+  const handleLargeFileUpload = async (file, progressStart, progressEnd) => {
+    // Step 1: Get presigned URL from server
+    const authHeader = getAuthHeader();
+    const presignedUrlResponse = await fetch('/api/upload/presigned-url', {
+      method: 'POST',
+      headers: {
+        ...authHeader,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        fileName: file.name,
+        fileType: file.type,
+        fileSize: file.size
+      })
+    });
+    
+    if (!presignedUrlResponse.ok) {
+      const error = await presignedUrlResponse.text();
+      throw new Error(`Failed to get presigned URL: ${error}`);
+    }
+    
+    const { url, fields, key } = await presignedUrlResponse.json();
+    
+    // Step 2: Upload file directly to R2 using presigned URL
+    const formData = new FormData();
+    Object.entries(fields).forEach(([fieldName, fieldValue]) => {
+      formData.append(fieldName, fieldValue);
+    });
+    formData.append('file', file);
+    
+    // Track upload progress
+    const xhr = new XMLHttpRequest();
+    xhr.upload.addEventListener('progress', (event) => {
+      if (event.lengthComputable) {
+        const percentComplete = ((event.loaded / event.total) * (progressEnd - progressStart - 10)) + progressStart;
+        setUploadProgress(Math.min(percentComplete, progressEnd - 10));
+      }
+    });
+    
+    // Upload to R2
+    await new Promise((resolve, reject) => {
+      xhr.open('POST', url, true);
+      xhr.onload = () => {
+        if (xhr.status === 204) {
+          resolve();
+        } else {
+          reject(new Error(`R2 upload failed with status ${xhr.status}`));
+        }
+      };
+      xhr.onerror = () => reject(new Error('Network error during R2 upload'));
+      xhr.send(formData);
+    });
+    
+    // Step 3: Confirm upload to server
+    setUploadProgress(progressEnd - 5);
+    const confirmResponse = await fetch('/api/upload/confirm', {
+      method: 'POST',
+      headers: {
+        ...authHeader,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        fileName: file.name,
+        fileType: file.type,
+        fileSize: file.size,
+        key: key,
+        // Add transcription settings
+        settings: {
+          language: 'en',
+          quality: 'high',
+          speaker_detection: true,
+          timestamps: true,
+          profanity_filter: false,
+          auto_punctuation: true
+        }
+      })
+    });
+    
+    if (!confirmResponse.ok) {
+      const error = await confirmResponse.text();
+      throw new Error(`Failed to confirm upload: ${error}`);
+    }
+    
+    setUploadProgress(progressEnd);
+  };
+  
+  // Handle small file upload (<4MB) directly to API
+  const handleSmallFileUpload = async (file, progressStart, progressEnd) => {
+    const authHeader = getAuthHeader();
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    // Add transcription settings
+    formData.append('language', 'en');
+    formData.append('quality', 'high');
+    formData.append('speaker_detection', 'true');
+    formData.append('timestamps', 'true');
+    formData.append('profanity_filter', 'false');
+    formData.append('auto_punctuation', 'true');
+    
+    // Track upload progress
+    const xhr = new XMLHttpRequest();
+    xhr.upload.addEventListener('progress', (event) => {
+      if (event.lengthComputable) {
+        const percentComplete = ((event.loaded / event.total) * (progressEnd - progressStart - 10)) + progressStart;
+        setUploadProgress(Math.min(percentComplete, progressEnd - 10));
+      }
+    });
+    
+    // Upload to API
+    await new Promise((resolve, reject) => {
+      xhr.open('POST', '/api/transcribe', true);
+      Object.entries(authHeader).forEach(([key, value]) => {
+        xhr.setRequestHeader(key, value);
+      });
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve();
+        } else {
+          reject(new Error(`Upload failed with status ${xhr.status}: ${xhr.responseText}`));
+        }
+      };
+      xhr.onerror = () => reject(new Error('Network error during upload'));
+      xhr.send(formData);
+    });
+    
+    setUploadProgress(progressEnd);
+  };
+
   return (
     <Layout>
       <Head>
@@ -414,282 +643,3 @@ export default function AudioChat() {
     </Layout>
   );
 
-  // Handle file drop for upload
-  const onDrop = useCallback(acceptedFiles => {
-    // Validate file size (max 500MB)
-    const validFiles = acceptedFiles.filter(file => file.size <= 500 * 1024 * 1024);
-    
-    if (validFiles.length < acceptedFiles.length) {
-      toast.error('Some files exceeded the 500MB limit and were removed');
-    }
-    
-    setSelectedUploadFiles(validFiles);
-    
-    // Set processing estimate based on file size
-    if (validFiles.length > 0) {
-      const totalSize = validFiles.reduce((sum, file) => sum + file.size, 0);
-      const minutes = Math.max(1, Math.ceil(totalSize / (1024 * 1024) / 2));
-      setProcessingEstimate(minutes === 1 ? '~1 min' : `~${minutes} mins`);
-    }
-  }, []);
-  
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({ 
-    onDrop,
-    accept: {
-      'audio/*': [],
-      'video/*': []
-    }
-  });
-  
-  // Format file size (KB, MB, GB)
-  const formatFileSize = (bytes) => {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-    return (bytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
-  };
-  
-  // Calculate estimated audio length based on file size
-  const calculateAudioLength = (bytes) => {
-    // Rough estimate: ~1MB per minute for medium quality audio
-    const minutes = Math.max(1, Math.round(bytes / (1024 * 1024)));
-    if (minutes < 60) {
-      return `~${minutes} min${minutes !== 1 ? 's' : ''}`;
-    } else {
-      const hours = Math.floor(minutes / 60);
-      const remainingMins = minutes % 60;
-      return `~${hours} hr${hours !== 1 ? 's' : ''}${remainingMins > 0 ? ` ${remainingMins} min${remainingMins !== 1 ? 's' : ''}` : ''}`;
-    }
-  };
-  
-  // Get upload method based on file size
-  const getUploadMethod = (bytes) => {
-    return bytes < 4 * 1024 * 1024 ? 'Standard Upload' : 'Direct Upload';
-  };
-  
-  // Get color for upload method display
-  const getUploadMethodColor = (bytes) => {
-    return bytes < 4 * 1024 * 1024 ? 'text-green-400' : 'text-blue-400';
-  };
-  
-  // Handle file upload
-  const handleUpload = async () => {
-    if (selectedUploadFiles.length === 0 || uploading) return;
-    
-    setUploading(true);
-    setUploadProgress(0);
-    
-    try {
-      // Process each file
-      for (let i = 0; i < selectedUploadFiles.length; i++) {
-        const file = selectedUploadFiles[i];
-        const progressStart = (i / selectedUploadFiles.length) * 100;
-        const progressEnd = ((i + 1) / selectedUploadFiles.length) * 100;
-        
-        // Determine upload method based on file size
-        if (file.size > 4 * 1024 * 1024) {
-          // Large file upload (>4MB): Use presigned URL method
-          await handleLargeFileUpload(file, progressStart, progressEnd);
-        } else {
-          // Small file upload (<4MB): Use direct upload to API
-          await handleSmallFileUpload(file, progressStart, progressEnd);
-        }
-      }
-      
-      // Success
-      toast.success('Files uploaded successfully!');
-      setShowUploadModal(false);
-      setSelectedUploadFiles([]);
-      setUploadProgress(0);
-      
-      // Refresh file list
-      fetchUserFiles();
-      
-    } catch (error) {
-      console.error('Upload error:', error);
-      toast.error('Upload failed: ' + (error.message || 'Unknown error'));
-    } finally {
-      setUploading(false);
-    }
-  };
-  
-  // Handle large file upload (>4MB) using presigned URL
-  const handleLargeFileUpload = async (file, progressStart, progressEnd) => {
-    // Step 1: Get presigned URL from server
-    const authHeader = await getAuthHeader();
-    const presignedUrlResponse = await fetch('/api/upload/presigned-url', {
-      method: 'POST',
-      headers: {
-        ...authHeader,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        fileName: file.name,
-        fileType: file.type,
-        fileSize: file.size
-      })
-    });
-    
-    if (!presignedUrlResponse.ok) {
-      const error = await presignedUrlResponse.text();
-      throw new Error(`Failed to get presigned URL: ${error}`);
-    }
-    
-    const { url, fields, key } = await presignedUrlResponse.json();
-    
-    // Step 2: Upload file directly to R2 using presigned URL
-    const formData = new FormData();
-    Object.entries(fields).forEach(([fieldName, fieldValue]) => {
-      formData.append(fieldName, fieldValue);
-    });
-    formData.append('file', file);
-    
-    // Track upload progress
-    const xhr = new XMLHttpRequest();
-    xhr.upload.addEventListener('progress', (event) => {
-      if (event.lengthComputable) {
-        const percentComplete = ((event.loaded / event.total) * (progressEnd - progressStart - 10)) + progressStart;
-        setUploadProgress(Math.min(percentComplete, progressEnd - 10));
-      }
-    });
-    
-    // Upload to R2
-    await new Promise((resolve, reject) => {
-      xhr.open('POST', url, true);
-      xhr.onload = () => {
-        if (xhr.status === 204) {
-          resolve();
-        } else {
-          reject(new Error(`R2 upload failed with status ${xhr.status}`));
-        }
-      };
-      xhr.onerror = () => reject(new Error('Network error during R2 upload'));
-      xhr.send(formData);
-    });
-    
-    // Step 3: Confirm upload to server
-    setUploadProgress(progressEnd - 5);
-    const confirmResponse = await fetch('/api/upload/confirm', {
-      method: 'POST',
-      headers: {
-        ...authHeader,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        fileName: file.name,
-        fileType: file.type,
-        fileSize: file.size,
-        key: key,
-        // Add transcription settings
-        settings: {
-          language: 'en',
-          quality: 'high',
-          speaker_detection: true,
-          timestamps: true,
-          profanity_filter: false,
-          auto_punctuation: true
-        }
-      })
-    });
-    
-    if (!confirmResponse.ok) {
-      const error = await confirmResponse.text();
-      throw new Error(`Failed to confirm upload: ${error}`);
-    }
-    
-    setUploadProgress(progressEnd);
-  };
-  
-  // Handle small file upload (<4MB) directly to API
-  const handleSmallFileUpload = async (file, progressStart, progressEnd) => {
-    const authHeader = await getAuthHeader();
-    const formData = new FormData();
-    formData.append('file', file);
-    
-    // Add transcription settings
-    formData.append('language', 'en');
-    formData.append('quality', 'high');
-    formData.append('speaker_detection', 'true');
-    formData.append('timestamps', 'true');
-    formData.append('profanity_filter', 'false');
-    formData.append('auto_punctuation', 'true');
-    
-    // Track upload progress
-    const xhr = new XMLHttpRequest();
-    xhr.upload.addEventListener('progress', (event) => {
-      if (event.lengthComputable) {
-        const percentComplete = ((event.loaded / event.total) * (progressEnd - progressStart - 10)) + progressStart;
-        setUploadProgress(Math.min(percentComplete, progressEnd - 10));
-      }
-    });
-    
-    // Upload to API
-    await new Promise((resolve, reject) => {
-      xhr.open('POST', '/api/transcribe', true);
-      Object.entries(authHeader).forEach(([key, value]) => {
-        xhr.setRequestHeader(key, value);
-      });
-      xhr.onload = () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          resolve();
-        } else {
-          reject(new Error(`Upload failed with status ${xhr.status}: ${xhr.responseText}`));
-        }
-      };
-      xhr.onerror = () => reject(new Error('Network error during upload'));
-      xhr.send(formData);
-    });
-    
-    setUploadProgress(progressEnd);
-  };
-
-              {/* Upload Progress */}
-              {uploading && selectedUploadFiles.length > 0 && (
-                <div className="mt-6">
-                  <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-blue-500 transition-all duration-300"
-                      style={{ width: `${uploadProgress}%` }}
-                    ></div>
-                  </div>
-                  <div className="flex justify-between text-sm mt-2">
-                    <span className="text-gray-400">Uploading...</span>
-                    <span className="text-gray-400">{Math.round(uploadProgress)}%</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Processing Time Estimate */}
-              <div className="mt-6 p-4 bg-gray-800 rounded-lg">
-                <div className="flex items-center space-x-2 mb-2">
-                  <FiClock className="w-4 h-4 text-gray-400" />
-                  <p className="text-sm font-medium">Processing Estimate</p>
-                </div>
-                <p className="text-xl font-bold text-center py-2">{processingEstimate}</p>
-                <p className="text-xs text-center text-gray-400">Estimated processing time</p>
-              </div>
-
-              {/* Start Transcription Button */}
-              <button
-                onClick={handleUpload}
-                disabled={uploading || selectedUploadFiles.length === 0}
-                className="w-full mt-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-900 disabled:opacity-50 rounded-lg text-white text-sm font-medium transition-colors flex items-center justify-center"
-              >
-                {uploading ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                    <span>Uploading...</span>
-                  </>
-                ) : (
-                  <>
-                    <FiPlay className="w-4 h-4 mr-2" />
-                    <span>Start Transcription</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </Layout>
-  );
