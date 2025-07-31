@@ -221,9 +221,9 @@ export default function AudioChat() {
                 </button>
                 
                 {/* File Selector */}
-                <div className="relative file-selector">
+                <button
                   onClick={() => setShowFileSelector(!showFileSelector)}
-                  className="flex items-center space-x-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-md transition-colors text-white border border-gray-600"
+                  className="relative file-selector flex items-center space-x-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-md transition-colors text-white border border-gray-600"
                 >
                   <FiFile className="w-4 h-4" />
                   <span className="text-sm">
