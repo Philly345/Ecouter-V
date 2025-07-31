@@ -1,52 +1,93 @@
+
 import fs from 'fs';
 import path from 'path';
 
-const dataDir = path.join(process.cwd(), 'data');
+// Check if we're in a serverless environment (like Vercel)
+const isServerless = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.NODE_ENV === 'production';
 
-// Ensure data directory exists
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
-}
+let dataDir, usersFile, filesFile;
+let filesystemAvailable = false;
 
-const usersFile = path.join(dataDir, 'users.json');
-const filesFile = path.join(dataDir, 'files.json');
-
-// Initialize files if they don't exist
-const initFile = (filePath, defaultData = []) => {
-  if (!fs.existsSync(filePath)) {
-    fs.writeFileSync(filePath, JSON.stringify(defaultData, null, 2));
+if (!isServerless) {
+  // Only set up file system in development/local environments
+  try {
+    dataDir = path.join(process.cwd(), 'data');
+    
+    // Ensure data directory exists
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
+    
+    usersFile = path.join(dataDir, 'users.json');
+    filesFile = path.join(dataDir, 'files.json');
+    
+    // Initialize files if they don't exist
+    const initFile = (filePath, defaultData = []) => {
+      if (!fs.existsSync(filePath)) {
+        fs.writeFileSync(filePath, JSON.stringify(defaultData, null, 2));
+      }
+    };
+    
+    initFile(usersFile);
+    initFile(filesFile);
+    filesystemAvailable = true;
+  } catch (error) {
+    console.warn('File system not available, skipping file-based database initialization:', error.message);
+    filesystemAvailable = false;
   }
-};
-
-initFile(usersFile);
-initFile(filesFile);
+}
 
 // Users database
 export const usersDB = {
   getAll: () => {
+    if (!filesystemAvailable) {
+      console.warn('File system not available, returning empty user list');
+      return [];
+    }
     try {
       const data = fs.readFileSync(usersFile, 'utf8');
       return JSON.parse(data);
     } catch (error) {
+      console.warn('Error reading users file:', error.message);
       return [];
     }
   },
 
   save: (users) => {
-    fs.writeFileSync(usersFile, JSON.stringify(users, null, 2));
+    if (!filesystemAvailable) {
+      console.warn('File system not available, cannot save users');
+      return;
+    }
+    try {
+      fs.writeFileSync(usersFile, JSON.stringify(users, null, 2));
+    } catch (error) {
+      console.error('Error saving users file:', error.message);
+    }
   },
 
   findByEmail: (email) => {
+    if (!filesystemAvailable) {
+      console.warn('File system not available, cannot find user by email');
+      return null;
+    }
     const users = usersDB.getAll();
     return users.find(user => user.email === email);
   },
 
   findById: (id) => {
+    if (!filesystemAvailable) {
+      console.warn('File system not available, cannot find user by id');
+      return null;
+    }
     const users = usersDB.getAll();
     return users.find(user => user.id === id);
   },
 
   create: (userData) => {
+    if (!filesystemAvailable) {
+      console.warn('File system not available, cannot create user');
+      return null;
+    }
     const users = usersDB.getAll();
     const newUser = {
       id: Date.now().toString(),
@@ -60,6 +101,10 @@ export const usersDB = {
   },
 
   update: (id, updateData) => {
+    if (!filesystemAvailable) {
+      console.warn('File system not available, cannot update user');
+      return null;
+    }
     const users = usersDB.getAll();
     const index = users.findIndex(user => user.id === id);
     if (index !== -1) {
@@ -78,16 +123,29 @@ export const usersDB = {
 // Files database
 export const filesDB = {
   getAll: () => {
+    if (!filesystemAvailable) {
+      console.warn('File system not available, returning empty files list');
+      return [];
+    }
     try {
       const data = fs.readFileSync(filesFile, 'utf8');
       return JSON.parse(data);
     } catch (error) {
+      console.warn('Error reading files file:', error.message);
       return [];
     }
   },
 
   save: (files) => {
-    fs.writeFileSync(filesFile, JSON.stringify(files, null, 2));
+    if (!filesystemAvailable) {
+      console.warn('File system not available, cannot save files');
+      return;
+    }
+    try {
+      fs.writeFileSync(filesFile, JSON.stringify(files, null, 2));
+    } catch (error) {
+      console.error('Error saving files file:', error.message);
+    }
   },
 
   findByUserId: (userId) => {
