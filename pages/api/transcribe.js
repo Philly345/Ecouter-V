@@ -769,7 +769,7 @@ function generateFallbackSummary(text, languageName) {
       insights += ` with concise exchanges`;
     }
     
-    insights += `. Content analysis indicates ';
+    insights += `. Content analysis indicates `;
     
     // Determine conversation type based on content analysis
     const uniqueWords = new Set(words).size;
