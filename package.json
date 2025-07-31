@@ -1,0 +1,63 @@
+{
+    "name": "ecouter-transcribe",
+    "version": "1.0.0",
+    "description": "AI-powered transcription web application",
+    "main": "index.js",
+    "scripts": {
+        "dev": "next dev",
+        "build": "next build",
+        "start": "next start",
+        "lint": "next lint",
+        "install-fast": "npm install --prefer-offline --no-audit --no-fund"
+    },
+    "dependencies": {
+        "@aws-sdk/client-s3": "3.441.0",
+        "@aws-sdk/s3-request-presigner": "^3.855.0",
+        "@chakra-ui/react": "^2.8.2",
+        "@emotion/react": "^11.11.3",
+        "@emotion/styled": "^11.11.0",
+        "@google-cloud/translate": "^9.2.0",
+        "@google/generative-ai": "^0.24.1",
+        "@notionhq/client": "^4.0.1",
+        "@vitalets/google-translate-api": "^9.2.1",
+        "autoprefixer": "10.4.16",
+        "axios": "^1.11.0",
+        "bcryptjs": "2.4.3",
+        "docx": "^9.5.1",
+        "dotenv": "^17.2.1",
+        "firebase-admin": "^13.4.0",
+        "firebase-functions": "^6.4.0",
+        "formidable": "^3.5.1",
+        "framer-motion": "^10.17.9",
+        "html2canvas": "^1.4.1",
+        "jsonwebtoken": "9.0.2",
+        "jspdf": "^3.0.1",
+        "mongodb": "^6.18.0",
+        "next": "^13.5.6",
+        "nodemailer": "6.9.7",
+        "officegen": "^0.6.5",
+        "postcss": "8.4.31",
+        "react": "^18.2.0",
+        "react-dom": "^18.2.0",
+        "react-dropzone": "14.2.3",
+        "react-icons": "4.11.0",
+        "react-toastify": "^11.0.5",
+        "tailwindcss": "3.3.5",
+        "translate-api": "^0.3.18"
+    },
+    "devDependencies": {
+        "@cloudflare/next-on-pages": "^1.13.13",
+        "eslint": "8.52.0",
+        "eslint-config-next": "13.5.6",
+        "vercel": "^44.6.4"
+    },
+    "keywords": [
+        "transcription",
+        "ai",
+        "react",
+        "nextjs",
+        "vercel"
+    ],
+    "author": "Ecouter Systems",
+    "license": "MIT"
+}
