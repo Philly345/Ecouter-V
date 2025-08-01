@@ -77,6 +77,7 @@ export default async function handler(req, res) {
         _id: new ObjectId(id) 
       });
       
+      const userId = user.id || user._id.toString();
       if (!file || file.userId !== userId) {
         return res.status(404).json({ error: 'File not found' });
       }

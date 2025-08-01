@@ -48,7 +48,14 @@ export default function ProcessingFiles() {
           // Ensure step information exists
           step: file.step || getProcessingStep(file.progress || Math.floor(Math.random() * 80) + 10)
         }));
+        
         setFiles(processedFiles);
+        
+        // Auto-redirect to recent files if no processing files remain
+        if (processedFiles.length === 0 && !loading) {
+          router.push('/files/recent');
+          return;
+        }
       } else {
         console.error('Failed to fetch files');
       }

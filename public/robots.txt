@@ -1,0 +1,24 @@
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://ecoutertranscribe.tech/sitemap.xml
+
+# Allow all crawlers to access the site since it's free
+# Block only sensitive API endpoints
+Disallow: /api/
+Disallow: /admin/
+Disallow: /_next/
+Disallow: /debug-upload
+Disallow: /test-upload
+
+# Allow important pages for SEO
+Allow: /
+Allow: /features
+Allow: /pricing
+Allow: /contact
+Allow: /help
+Allow: /privacy
+Allow: /terms
+Allow: /signup
+Allow: /login

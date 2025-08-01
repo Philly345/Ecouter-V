@@ -1,9 +1,9 @@
 import { jsPDF } from 'jspdf';
 import { Document, Packer, Paragraph, TextRun } from 'docx';
 import { Client } from '@notionhq/client';
-import { filesDB } from '../../../utils/database.js';
 import { verifyToken, getTokenFromRequest } from '../../../utils/auth.js';
 import { connectDB } from '../../../lib/mongodb.js';
+import { ObjectId } from 'mongodb';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -33,8 +33,10 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'File ID and format are required' });
     }
 
-    // Get file details
-    const file = filesDB.findById(fileId);
+    // Get file details from MongoDB
+    const file = await db.collection('files').findOne({ 
+      _id: new ObjectId(fileId) 
+    });
     if (!file) {
       return res.status(404).json({ error: 'File not found' });
     }

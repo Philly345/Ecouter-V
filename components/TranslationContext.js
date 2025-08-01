@@ -19,9 +19,12 @@ export const TranslationProvider = ({ children }) => {
 
   // Load saved language preference from localStorage
   useEffect(() => {
-    const savedLanguage = localStorage.getItem('kilo-language');
-    if (savedLanguage && SUPPORTED_LANGUAGES.find(lang => lang.code === savedLanguage)) {
-      setCurrentLanguage(savedLanguage);
+    // Only access localStorage on client side
+    if (typeof window !== 'undefined') {
+      const savedLanguage = localStorage.getItem('kilo-language');
+      if (savedLanguage && SUPPORTED_LANGUAGES.find(lang => lang.code === savedLanguage)) {
+        setCurrentLanguage(savedLanguage);
+      }
     }
   }, []);
 
@@ -34,7 +37,11 @@ export const TranslationProvider = ({ children }) => {
     // Use RAF to prevent layout thrashing
     requestAnimationFrame(() => {
       setCurrentLanguage(languageCode);
-      localStorage.setItem('kilo-language', languageCode);
+      
+      // Only access localStorage on client side
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('kilo-language', languageCode);
+      }
       
       // Clear cache when language changes
       setTranslationCache(new Map());

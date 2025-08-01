@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Sidebar from '../components/Sidebar';
 import { useAuth } from '../components/AuthContext';
+import ConfirmationModal from '../components/ConfirmationModal';
 import { FiHardDrive, FiTrash2, FiRefreshCw, FiAlertCircle } from 'react-icons/fi';
 
 export default function Storage() {
@@ -13,6 +14,7 @@ export default function Storage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [deleteModal, setDeleteModal] = useState({ isOpen: false, fileId: null, fileName: '' });
 
   useEffect(() => {
     // Only redirect if auth check is complete and no user found
@@ -56,8 +58,13 @@ export default function Storage() {
     fetchStorageData();
   };
 
-  const handleDelete = async (fileId) => {
-    if (!confirm('Are you sure you want to delete this file? This action cannot be undone.')) return;
+  const handleDeleteClick = (fileId, fileName) => {
+    setDeleteModal({ isOpen: true, fileId, fileName });
+  };
+
+  const handleDeleteConfirm = async () => {
+    const { fileId } = deleteModal;
+    setDeleteModal({ isOpen: false, fileId: null, fileName: '' });
 
     try {
       const token = localStorage.getItem('token');
@@ -72,12 +79,15 @@ export default function Storage() {
         // Refresh data after deletion
         fetchStorageData();
       } else {
-        alert('Failed to delete file');
+        console.error('Failed to delete file');
       }
     } catch (error) {
       console.error('Delete error:', error);
-      alert('Failed to delete file');
     }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteModal({ isOpen: false, fileId: null, fileName: '' });
   };
 
   const formatFileSize = (bytes) => {
@@ -254,7 +264,7 @@ export default function Storage() {
                           </div>
                           
                           <button
-                            onClick={() => handleDelete(file.id)}
+                            onClick={() => handleDeleteClick(file.id, file.name)}
                             className="ml-4 p-2 text-white/60 hover:text-red-400 transition-colors"
                             title="Delete file"
                           >
@@ -286,6 +296,18 @@ export default function Storage() {
           )}
         </div>
       </div>
+      
+      {/* Delete Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={deleteModal.isOpen}
+        onClose={handleDeleteCancel}
+        onConfirm={handleDeleteConfirm}
+        title="Delete File"
+        message={`Are you sure you want to delete "${deleteModal.fileName}"? This action cannot be undone and will permanently remove the file and its transcript.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        type="danger"
+      />
     </>
   );
 }

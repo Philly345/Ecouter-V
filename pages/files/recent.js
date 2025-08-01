@@ -4,6 +4,7 @@ import { useRouter } from 'next/router';
 import { useAuth } from '../../components/AuthContext';
 import Sidebar from '../../components/Sidebar';
 import FileCard from '../../components/FileCard';
+import ConfirmationModal from '../../components/ConfirmationModal';
 import { FiClock, FiRefreshCw, FiSearch, FiFilter, FiFileText } from 'react-icons/fi';
 
 export default function RecentFiles() {
@@ -15,6 +16,7 @@ export default function RecentFiles() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('all');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [deleteModal, setDeleteModal] = useState({ isOpen: false, fileId: null, fileName: '' });
 
   useEffect(() => {
     if (authChecked && !user) {
@@ -61,8 +63,13 @@ export default function RecentFiles() {
     fetchFiles();
   };
 
-  const handleDelete = async (fileId) => {
-    if (!confirm('Are you sure you want to delete this file?')) return;
+  const handleDeleteClick = (fileId, fileName) => {
+    setDeleteModal({ isOpen: true, fileId, fileName });
+  };
+
+  const handleDeleteConfirm = async () => {
+    const { fileId } = deleteModal;
+    setDeleteModal({ isOpen: false, fileId: null, fileName: '' });
 
     try {
       const token = localStorage.getItem('token');
@@ -76,12 +83,15 @@ export default function RecentFiles() {
       if (response.ok) {
         setFiles(files.filter(file => file.id !== fileId));
       } else {
-        alert('Failed to delete file');
+        console.error('Failed to delete file');
       }
     } catch (error) {
       console.error('Delete error:', error);
-      alert('Failed to delete file');
     }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteModal({ isOpen: false, fileId: null, fileName: '' });
   };
 
   const handleDownload = (file) => {
@@ -195,7 +205,7 @@ export default function RecentFiles() {
                   <FileCard
                     key={file.id}
                     file={file}
-                    onDelete={handleDelete}
+                    onDelete={() => handleDeleteClick(file.id, file.name)}
                     onDownload={handleDownload}
                   />
                 ))}
@@ -217,6 +227,18 @@ export default function RecentFiles() {
           )}
         </div>
       </div>
+      
+      {/* Delete Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={deleteModal.isOpen}
+        onClose={handleDeleteCancel}
+        onConfirm={handleDeleteConfirm}
+        title="Delete File"
+        message={`Are you sure you want to delete "${deleteModal.fileName}"? This action cannot be undone and will permanently remove the file and its transcript.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        type="danger"
+      />
     </>
   );
 }

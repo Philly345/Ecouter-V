@@ -37,7 +37,6 @@ const Sidebar = ({ user, currentPage = 'dashboard', onLogout, onSidebarToggle })
     { id: 'recent', label: 'Recent Files', icon: FiClock, href: '/files/recent' },
     { id: 'processing', label: 'Processing', icon: FiPlay, href: '/files/processing' },
     { id: 'completed', label: 'Completed', icon: FiCheck, href: '/files/completed' },
-    { id: 'audio-chat', label: 'Chat with Audio', icon: FiMessageSquare, href: '/audio-chat' },
     { id: 'storage', label: 'Storage Usage', icon: FiHardDrive, href: '/storage' },
   ];
 
@@ -114,44 +113,27 @@ const Sidebar = ({ user, currentPage = 'dashboard', onLogout, onSidebarToggle })
           {menuItems.map((item) => {
             const Icon = item.icon;
             const isActive = currentPage === item.id;
-            const isDisabled = item.id === 'audio-chat'; // Disable chat with audio
-            
-            if (isDisabled) {
-              // Render disabled chat with audio item
-              return (
-                <div
-                  key={item.id}
-                  className="flex items-center justify-between px-3 py-2 rounded-lg mb-1 opacity-50 cursor-not-allowed"
-                >
-                  <div className="flex items-center space-x-3">
-                    <Icon className="w-4 h-4 text-white/40" />
-                    {!isCollapsed && !isSidebarCollapsed && (
-                      <span className="text-sm text-white/40">
-                        <T>{item.label}</T>
-                      </span>
-                    )}
-                  </div>
-                  {!isCollapsed && !isSidebarCollapsed && (
-                    <span className="text-xs bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded-full font-medium">
-                      <T>Beta</T>
-                    </span>
-                  )}
-                </div>
-              );
-            }
+            const isBeta = false; // No beta items
             
             return (
               <Link
                 key={item.id}
                 href={item.href}
-                className={`sidebar-link flex items-center space-x-3 px-3 py-2 rounded-lg mb-1 transition-all duration-200 ${
+                className={`sidebar-link flex items-center ${isBeta ? 'justify-between' : 'space-x-3'} px-3 py-2 rounded-lg mb-1 transition-all duration-200 ${
                   isActive ? 'active' : ''
                 }`}
               >
-                <Icon className="w-4 h-4 text-white/70" />
-                {!isCollapsed && !isSidebarCollapsed && (
-                  <span className="text-sm text-white/80">
-                    <T>{item.label}</T>
+                <div className="flex items-center space-x-3">
+                  <Icon className="w-4 h-4 text-white/70" />
+                  {!isCollapsed && !isSidebarCollapsed && (
+                    <span className="text-sm text-white/80">
+                      <T>{item.label}</T>
+                    </span>
+                  )}
+                </div>
+                {isBeta && !isCollapsed && !isSidebarCollapsed && (
+                  <span className="text-xs bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded-full font-medium">
+                    <T>Beta</T>
                   </span>
                 )}
               </Link>

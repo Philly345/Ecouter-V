@@ -24,6 +24,14 @@ export const AuthProvider = ({ children }) => {
   const checkAuth = async () => {
     console.log('🔍 Starting auth check...');
     try {
+      // Only access localStorage on client side
+      if (typeof window === 'undefined') {
+        console.log('❌ Server side, skipping auth check');
+        setLoading(false);
+        setAuthChecked(true);
+        return;
+      }
+      
       const token = localStorage.getItem('token');
       console.log('📝 Token found:', !!token);
       
@@ -51,12 +59,16 @@ export const AuthProvider = ({ children }) => {
         console.log('❌ Auth check failed, removing token');
         const errorText = await response.text();
         console.log('Error response:', errorText);
-        localStorage.removeItem('token');
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('token');
+        }
         setUser(null);
       }
     } catch (error) {
       console.error('💥 Auth check failed with error:', error);
-      localStorage.removeItem('token');
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('token');
+      }
       setUser(null);
     } finally {
       console.log('🏁 Auth check complete, setting states');
@@ -81,7 +93,9 @@ export const AuthProvider = ({ children }) => {
 
     if (response.ok) {
       console.log('💾 Storing token and setting user...');
-      localStorage.setItem('token', data.token);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('token', data.token);
+      }
       setUser(data.user);
       setAuthChecked(true);
       console.log('✅ Login successful, user set:', data.user);
@@ -117,7 +131,9 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
-      localStorage.removeItem('token');
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('token');
+      }
       setUser(null);
       router.push('/home');
     }

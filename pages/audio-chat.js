@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
-import { FiSend, FiFile, FiMessageSquare, FiChevronDown, FiUser, FiCpu, FiUpload, FiPlay, FiX, FiClock } from 'react-icons/fi';
+import { FiSend, FiFile, FiMessageSquare, FiChevronDown, FiUser, FiCpu, FiUpload, FiPlay, FiX, FiClock, FiMic, FiVolume2, FiCheck } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import Layout from '../components/Layout';
 import { getAuthHeader } from '../utils/auth';
@@ -427,115 +427,169 @@ export default function AudioChat() {
   };
 
   return (
-    <Layout>
+    <Layout currentPage="audio-chat">
       <Head>
-        <title>Chat with Audio | Kilo</title>
+        <title>Chat with Audio | Ecouter</title>
+        <meta name="description" content="Chat with your audio files using AI" />
       </Head>
       
-      <div className="flex flex-col h-screen bg-black">
-        {/* Header */}
-        <div className="flex-shrink-0 bg-black border-b border-gray-700">
-          <div className="max-w-4xl mx-auto px-4 py-4">
-            <div className="flex items-center justify-between">
-              <h1 className="text-xl font-semibold text-white">Chat with Audio Files</h1>
-              
-              <div className="flex space-x-2">
-                {/* Upload Button */}
-                <button
-                  onClick={() => setShowUploadModal(true)}
-                  className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-md transition-colors text-white"
-                >
-                  <FiUpload className="w-4 h-4" />
-                  <span className="text-sm">Upload Audio</span>
-                </button>
-                
-                {/* File Selector */}
-                <button
-                  onClick={() => setShowFileSelector(!showFileSelector)}
-                  className="relative file-selector flex items-center space-x-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-md transition-colors text-white border border-gray-600"
-                >
-                  <FiFile className="w-4 h-4" />
-                  <span className="text-sm">
-                    {selectedFile ? files.find(f => f.id === selectedFile)?.name || 'Select Audio File' : 'Select Audio File'}
-                  </span>
-                  <FiChevronDown className={`w-4 h-4 transition-transform ${showFileSelector ? 'rotate-180' : ''}`} />
-                </button>
-                
-                {/* Dropdown */}
-                {showFileSelector && (
-                  <div className="absolute top-full right-0 mt-2 w-80 bg-gray-800 border border-gray-600 rounded-md shadow-lg z-50 max-h-64 overflow-y-auto">
-                    {isLoading ? (
-                      <div className="p-4 text-center">
-                        <div className="animate-spin w-6 h-6 border-2 border-gray-500 border-t-transparent rounded-full mx-auto"></div>
-                        <p className="mt-2 text-sm text-gray-400">Loading files...</p>
-                      </div>
-                    ) : files.length === 0 ? (
-                      <div className="p-4 text-center">
-                        <p className="text-sm text-gray-400">
-                          No audio files found. Upload and process audio files to chat with them.
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="py-2">
-                        {files.map(file => (
-                          <button
-                            key={file.id}
-                            className={`w-full text-left px-4 py-3 hover:bg-gray-700 ${
-                              selectedFile === file.id ? "bg-gray-700" : ""
-                            }`}
-                            onClick={() => handleFileSelect(file.id)}
-                          >
-                            <div className="flex items-center space-x-3">
-                              <FiFile className="w-4 h-4 text-gray-400" />
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-white truncate">{file.name}</p>
-                                <p className="text-xs text-gray-400">
-                                  {new Date(file.createdAt).toLocaleDateString()}
-                                </p>
-                              </div>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        {/* Chat Area */}
-        <div className="flex-1 flex flex-col min-h-0">
+      <div className="min-h-screen bg-black">
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col h-screen">
           {!selectedFile ? (
-            /* Welcome Screen */
-            <div className="flex-1 flex items-center justify-center bg-black">
-              <div className="text-center max-w-md">
-                <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <FiMessageSquare className="w-8 h-8 text-gray-400" />
+            /* Welcome Screen - Dashboard Style */
+            <div className="flex-1 flex items-center justify-center p-8">
+              <div className="text-center max-w-2xl">
+                {/* Header Section */}
+                <div className="mb-12">
+                  <div className="w-16 h-16 bg-gray-800 border border-gray-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+                    <FiMessageSquare className="w-8 h-8 text-white" />
+                  </div>
+                  <h1 className="text-2xl font-bold text-white mb-4">
+                    Chat with Your Audio Files
+                  </h1>
+                  <p className="text-sm text-white/60 leading-relaxed">
+                    Select an audio file to start an intelligent conversation about its content.
+                    Ask questions, get summaries, or explore insights from your transcriptions.
+                  </p>
                 </div>
-                <h2 className="text-2xl font-semibold text-white mb-2">
-                  Chat with Your Audio Files
-                </h2>
-                <p className="text-gray-400 mb-6">
-                  Select an audio file from the dropdown above to start a conversation about its content.
-                </p>
-                <button
-                  onClick={() => setShowFileSelector(true)}
-                  className="inline-flex items-center px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors border border-gray-600"
-                >
-                  <FiFile className="w-4 h-4 mr-2" />
-                  Choose Audio File
-                </button>
+
+                {/* File Selection Card */}
+                <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-8 mb-8">
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-lg font-semibold text-white">Your Audio Files</h2>
+                    <button
+                      onClick={() => setShowUploadModal(true)}
+                      className="flex items-center space-x-1 px-2 py-1 bg-gray-800 hover:bg-gray-700 text-white rounded-lg border border-gray-600 transition-all duration-200"
+                    >
+                      <FiUpload className="w-3 h-3" />
+                      <span className="text-xs font-medium">Upload</span>
+                    </button>
+                  </div>
+                  
+                  {isLoading ? (
+                    <div className="flex items-center justify-center py-12">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-400"></div>
+                      <span className="ml-3 text-white/60">Loading your files...</span>
+                    </div>
+                  ) : files.length === 0 ? (
+                    <div className="text-center py-12">
+                      <FiFile className="w-12 h-12 text-white/20 mx-auto mb-4" />
+                      <p className="text-white/60 mb-6">
+                        No audio files found. Upload and process audio files to start chatting.
+                      </p>
+                      <button
+                        onClick={() => setShowUploadModal(true)}
+                        className="inline-flex items-center space-x-1 px-3 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg border border-gray-600 transition-all duration-200 shadow-lg"
+                      >
+                        <FiUpload className="w-3 h-3" />
+                        <span className="text-sm">Upload Your First File</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="grid gap-3 max-h-64 overflow-y-auto">
+                      {files.map((file) => (
+                        <button
+                          key={file.id}
+                          onClick={() => handleFileSelect(file.id)}
+                          className="group flex items-center justify-between p-3 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-gray-500/30 rounded-xl transition-all duration-200"
+                        >
+                          <div className="flex items-center space-x-4">
+                            <div className="w-10 h-10 bg-gray-800 border border-gray-600 rounded-xl flex items-center justify-center">
+                              <FiVolume2 className="w-5 h-5 text-white" />
+                            </div>
+                            <div className="text-left">
+                              <p className="text-white text-sm font-medium group-hover:text-gray-300 transition-colors truncate max-w-xs">
+                                {file.name}
+                              </p>
+                              <p className="text-xs text-white/50">
+                                {formatFileSize(file.size)} • {calculateAudioLength(file.size)}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-xs bg-gray-800 text-gray-300 px-2 py-1 rounded-full border border-gray-600">
+                              Ready
+                            </span>
+                            <FiPlay className="w-4 h-4 text-white/40 group-hover:text-gray-300 transition-colors" />
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Features Grid */}
+                <div className="grid md:grid-cols-3 gap-6">
+                  <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6">
+                    <div className="w-8 h-8 bg-gray-800 border border-gray-600 rounded-lg flex items-center justify-center mb-4">
+                      <FiMessageSquare className="w-4 h-4 text-gray-300" />
+                    </div>
+                    <h3 className="text-white text-sm font-semibold mb-2">Ask Questions</h3>
+                    <p className="text-xs text-white/60">Get instant answers about your audio content</p>
+                  </div>
+                  <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6">
+                    <div className="w-8 h-8 bg-gray-800 border border-gray-600 rounded-lg flex items-center justify-center mb-4">
+                      <FiCpu className="w-4 h-4 text-gray-300" />
+                    </div>
+                    <h3 className="text-white text-sm font-semibold mb-2">AI Insights</h3>
+                    <p className="text-xs text-white/60">Discover key themes and insights automatically</p>
+                  </div>
+                  <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6">
+                    <div className="w-8 h-8 bg-gray-800 border border-gray-600 rounded-lg flex items-center justify-center mb-4">
+                      <FiCheck className="w-4 h-4 text-gray-300" />
+                    </div>
+                    <h3 className="text-white text-sm font-semibold mb-2">Smart Summaries</h3>
+                    <p className="text-xs text-white/60">Get concise summaries of long recordings</p>
+                  </div>
+                </div>
               </div>
             </div>
           ) : (
             <>
-              {/* Messages Area */}
-              <div className="flex-1 overflow-y-auto bg-black">
-                <div className="max-w-4xl mx-auto px-4 py-6">
-                  <div className="space-y-4">
-                    {messages.filter(m => m.role !== 'system').map((message, index) => (
+              {/* Chat Header */}
+              <div className="bg-black/50 backdrop-blur-sm border-b border-white/10 px-6 py-4">
+                <div className="max-w-4xl mx-auto flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <div className="w-8 h-8 bg-gray-800 border border-gray-600 rounded-xl flex items-center justify-center">
+                      <FiVolume2 className="w-4 h-4 text-white" />
+                    </div>
+                    <div>
+                      <h1 className="text-sm font-semibold text-white">
+                        {files.find(f => f.id === selectedFile)?.name || 'Audio File'}
+                      </h1>
+                      <p className="text-xs text-white/60">AI Chat Session • Beta</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-3">
+                    <button
+                      onClick={() => setShowUploadModal(true)}
+                      className="flex items-center space-x-2 px-3 py-2 bg-white/5 hover:bg-white/10 text-white/80 hover:text-white rounded-lg border border-white/10 transition-all duration-200"
+                    >
+                      <FiUpload className="w-3 h-3" />
+                      <span className="text-xs">Upload</span>
+                    </button>
+                    
+                    <button
+                      onClick={() => {
+                        setSelectedFile('');
+                        setMessages([]);
+                      }}
+                      className="flex items-center space-x-2 px-3 py-2 bg-white/5 hover:bg-white/10 text-white/80 hover:text-white rounded-lg border border-white/10 transition-all duration-200"
+                    >
+                      <FiX className="w-3 h-3" />
+                      <span className="text-xs">Close Chat</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Chat Messages */}
+              <div className="flex-1 overflow-hidden bg-gradient-to-b from-black to-gray-900">
+                <div className="h-full overflow-y-auto px-6 py-8">
+                  <div className="max-w-4xl mx-auto space-y-6">
+                    {messages.map((message, index) => (
                       <div
                         key={index}
                         className={`flex items-start space-x-4 ${
@@ -543,26 +597,27 @@ export default function AudioChat() {
                         }`}
                       >
                         {message.role === 'assistant' && (
-                          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center">
+                          <div className="flex-shrink-0 w-8 h-8 rounded-xl bg-gray-800 border border-gray-600 flex items-center justify-center shadow-lg">
                             <FiCpu className="w-4 h-4 text-white" />
                           </div>
                         )}
                         
-                        {/* Message Content */}
-                        <div className={`max-w-xs lg:max-w-md xl:max-w-lg ${
-                          message.role === 'user' ? 'order-1' : 'order-2'
+                        <div className={`max-w-lg lg:max-w-xl ${
+                          message.role === 'user' ? 'order-1' : ''
                         }`}>
-                          <div className={`px-4 py-3 rounded-2xl ${
+                          <div className={`px-4 py-3 rounded-2xl shadow-lg backdrop-blur-sm ${
                             message.role === 'user'
-                              ? 'bg-gray-700 text-white ml-auto'
-                              : 'bg-gray-800 text-white'
+                              ? 'bg-gray-800 border border-gray-600 text-white'
+                              : 'bg-white/10 border border-white/20 text-white'
                           }`}>
-                            <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                            <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                              {message.content}
+                            </p>
                           </div>
                         </div>
 
                         {message.role === 'user' && (
-                          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center order-2">
+                          <div className="flex-shrink-0 w-8 h-8 rounded-xl bg-gray-800 border border-gray-600 flex items-center justify-center order-2 shadow-lg">
                             <FiUser className="w-4 h-4 text-white" />
                           </div>
                         )}
@@ -572,15 +627,18 @@ export default function AudioChat() {
                     {/* Typing Indicator */}
                     {isProcessing && (
                       <div className="flex items-start space-x-4 justify-start">
-                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center">
+                        <div className="flex-shrink-0 w-8 h-8 rounded-xl bg-gray-800 border border-gray-600 flex items-center justify-center shadow-lg">
                           <FiCpu className="w-4 h-4 text-white" />
                         </div>
-                        <div className="max-w-xs lg:max-w-md xl:max-w-lg">
-                          <div className="bg-gray-800 px-4 py-3 rounded-2xl">
-                            <div className="flex space-x-1">
-                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                        <div className="max-w-lg lg:max-w-xl">
+                          <div className="bg-white/10 backdrop-blur-sm border border-white/20 px-4 py-3 rounded-2xl shadow-lg">
+                            <div className="flex items-center space-x-2">
+                              <div className="flex space-x-1">
+                                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                              </div>
+                              <span className="text-xs text-white/60 ml-2">AI is thinking...</span>
                             </div>
                           </div>
                         </div>
@@ -593,16 +651,16 @@ export default function AudioChat() {
               </div>
               
               {/* Input Area */}
-              <div className="flex-shrink-0 bg-black px-4 py-6">
-                <div className="max-w-3xl mx-auto">
+              <div className="flex-shrink-0 bg-black/50 backdrop-blur-sm border-t border-white/10 px-6 py-6">
+                <div className="max-w-4xl mx-auto">
                   <div className="relative">
-                    <div className="flex items-center bg-gray-800 rounded-3xl border border-gray-600 shadow-lg">
+                    <div className="flex items-center bg-white/10 backdrop-blur-sm rounded-2xl border border-white/20 shadow-xl">
                       {/* Input field */}
-                      <div className="flex-1 relative px-4">
+                      <div className="flex-1 relative px-6">
                         <textarea
                           ref={inputRef}
                           rows={1}
-                          placeholder="Ask anything"
+                          placeholder="Ask anything about this audio file..."
                           value={inputMessage}
                           onChange={handleInputChange}
                           onKeyPress={(e) => {
@@ -612,7 +670,7 @@ export default function AudioChat() {
                             }
                           }}
                           disabled={isProcessing}
-                          className="w-full resize-none bg-transparent py-3 text-white placeholder-gray-400 focus:outline-none disabled:opacity-50 text-base"
+                          className="w-full resize-none bg-transparent py-3 text-white placeholder-white/50 focus:outline-none disabled:opacity-50 text-sm"
                           style={{ minHeight: '24px', maxHeight: '200px' }}
                         />
                       </div>
@@ -622,10 +680,10 @@ export default function AudioChat() {
                         <button
                           onClick={handleSendMessage}
                           disabled={!inputMessage.trim() || isProcessing}
-                          className={`p-2 rounded-full transition-colors ${
+                          className={`p-2 rounded-xl transition-all duration-200 ${
                             !inputMessage.trim() || isProcessing
-                              ? "text-gray-500 cursor-not-allowed"
-                              : "text-white bg-white/10 hover:bg-white/20"
+                              ? "text-white/30 cursor-not-allowed"
+                              : "text-white bg-gray-800 hover:bg-gray-700 border border-gray-600 shadow-lg"
                           }`}
                           aria-label="Send message"
                         >
