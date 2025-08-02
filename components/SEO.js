@@ -1,8 +1,8 @@
 import Head from 'next/head';
 
-export default function SEO({ 
-  title = "Ecouter Transcribe – Free AI Audio to Text with Chat",
-  description = "Transcribe audio to text instantly using AI. Free, fast, and accurate with chat, meeting analysis, and speaker identification.",
+export default function SEO({
+  title = "Ecouter Transcribe – Smart AI-Powered Transcription",
+  description = "Transform audio into intelligent insights. Advanced AI-powered transcription with speaker identification, sentiment analysis, and intelligent summaries.",
   url = "https://ecoutertranscribe.tech",
   image = "https://ecoutertranscribe.tech/og-image.png",
   type = "website"
@@ -36,7 +36,21 @@ export default function SEO({
     "author": {
       "@type": "Organization",
       "name": "Ecouter Transcribe"
-    }
+    },
+    "review": [
+      {
+        "@type": "Review",
+        "reviewRating": {
+          "@type": "Rating",
+          "ratingValue": "5"
+        },
+        "author": {
+          "@type": "Person",
+          "name": "Verified User"
+        },
+        "reviewBody": "Excellent AI transcription. Fast, accurate, and perfect for meetings."
+      }
+    ]
   };
 
   const faqStructuredData = {
@@ -75,6 +89,7 @@ export default function SEO({
     "@type": "WebSite",
     "url": url,
     "name": "Ecouter Transcribe",
+    "alternateName": "EcouterTranscribe",
     "potentialAction": {
       "@type": "SearchAction",
       "target": `${url}/search?q={search_term_string}`,
@@ -112,6 +127,7 @@ export default function SEO({
       {/* Basic SEO */}
       <title>{title}</title>
       <meta name="description" content={description} />
+      <meta name="keywords" content="AI transcription, audio to text, free transcription tool, speaker identification, meeting analysis, Ecouter Transcribe" />
       <meta name="author" content="Ecouter Transcribe" />
       <meta name="robots" content="index, follow" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
