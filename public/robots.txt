@@ -1,19 +1,11 @@
 User-agent: *
 Allow: /
-
-# Sitemap location
-Sitemap: https://ecoutertranscribe.tech/sitemap.xml
-
-# Crawl-delay: 10  # Uncomment if needed to limit crawl rate
-
-# Disallow sensitive areas
 Disallow: /api/
 Disallow: /admin/
-Disallow: /dashboard/
 Disallow: /account/
 Disallow: /*?*
 
-# Allow all other pages
+# Static Assets (Allow JS, CSS, images, etc.)
 Allow: /*.css$
 Allow: /*.js$
 Allow: /*.png$
@@ -23,18 +15,24 @@ Allow: /*.gif$
 Allow: /*.svg$
 Allow: /*.webp$
 
-# Allow all major search engines
-User-agent: Googlebot
-Allow: /
+# Sitemap location
+Sitemap: https://ecoutertranscribe.tech/sitemap.xml
 
-User-agent: Bingbot
-Allow: /
+# Googlebot (inherits from above but can have overrides if needed)
+User-agent: Googlebot
 Disallow: /_next/
 Disallow: /debug-upload
 Disallow: /test-upload
-
-# Allow important pages for SEO
 Allow: /
+
+# Bingbot (same as Googlebot)
+User-agent: Bingbot
+Disallow: /_next/
+Disallow: /debug-upload
+Disallow: /test-upload
+Allow: /
+
+# Important Public Pages (for clarity only – already allowed above)
 Allow: /features
 Allow: /pricing
 Allow: /contact
