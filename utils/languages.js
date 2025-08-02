@@ -225,44 +225,85 @@ export function getLanguageName(languageCode) {
   return language?.name || 'English';
 }
 
-// Google Translate API (Free, no API key required)
+// MYMEMORY Translation API (Free, more reliable than Google Translate)
 export async function translateText(text, targetLanguage, sourceLanguage = 'en') {
   if (targetLanguage === sourceLanguage || targetLanguage === 'en') {
     return text; // No translation needed
   }
 
   try {
-    // Split long text into chunks (Google Translate works better with smaller chunks)
-    const chunks = splitTextIntoChunks(text, 3000);
+    console.log(`🌐 Starting translation from ${sourceLanguage} to ${targetLanguage}`);
+    
+    // Split long text into chunks (MYMEMORY has a limit of ~500 characters per request)
+    const chunks = splitTextIntoChunks(text, 450);
     const translatedChunks = [];
-
-    for (const chunk of chunks) {
-      const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sourceLanguage}&tl=${targetLanguage}&dt=t&q=${encodeURIComponent(chunk)}`;
+    
+    // Get email from environment for MYMEMORY API (improves rate limits)
+    const email = process.env.MYMEMORY_EMAIL || '';
+    
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i];
+      console.log(`🔄 Translating chunk ${i + 1}/${chunks.length} (${chunk.length} chars)`);
+      
+      // Build MYMEMORY API URL
+      let url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(chunk)}&langpair=${sourceLanguage}|${targetLanguage}`;
+      
+      // Add email if available (increases daily quota)
+      if (email) {
+        url += `&de=${encodeURIComponent(email)}`;
+      }
       
       const response = await fetch(url);
       
       if (response.ok) {
         const data = await response.json();
         
-        // Google Translate returns an array structure
-        // data[0] contains translation segments
-        if (data && data[0] && Array.isArray(data[0])) {
-          const translatedText = data[0].map(segment => segment[0]).join('');
+        // MYMEMORY returns: { responseData: { translatedText: "..." }, responseStatus: 200 }
+        if (data && data.responseData && data.responseData.translatedText) {
+          const translatedText = data.responseData.translatedText;
           translatedChunks.push(translatedText);
+          console.log(`✅ Chunk ${i + 1} translated successfully`);
         } else {
-          console.warn('Unexpected Google Translate response format');
+          console.warn('Unexpected MYMEMORY response format:', data);
           translatedChunks.push(chunk); // Use original text if format is unexpected
         }
       } else {
-        console.warn('Google Translate request failed:', response.status);
-        translatedChunks.push(chunk); // Use original text if request fails
+        console.warn('MYMEMORY request failed:', response.status, response.statusText);
+        
+        // Try fallback to Google Translate for this chunk
+        try {
+          console.log('🔄 Trying Google Translate fallback...');
+          const googleUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sourceLanguage}&tl=${targetLanguage}&dt=t&q=${encodeURIComponent(chunk)}`;
+          const googleResponse = await fetch(googleUrl);
+          
+          if (googleResponse.ok) {
+            const googleData = await googleResponse.json();
+            if (googleData && googleData[0] && Array.isArray(googleData[0])) {
+              const translatedText = googleData[0].map(segment => segment[0]).join('');
+              translatedChunks.push(translatedText);
+              console.log(`✅ Chunk ${i + 1} translated with Google fallback`);
+            } else {
+              translatedChunks.push(chunk);
+            }
+          } else {
+            translatedChunks.push(chunk);
+          }
+        } catch (fallbackError) {
+          console.warn('Google Translate fallback also failed:', fallbackError);
+          translatedChunks.push(chunk); // Use original text if both fail
+        }
       }
       
-      // Add small delay to respect rate limits
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Add delay to respect rate limits (MYMEMORY allows ~100 requests per day for free users)
+      if (i < chunks.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
     }
 
-    return translatedChunks.join(' ');
+    const finalTranslation = translatedChunks.join(' ');
+    console.log(`✅ Translation completed: ${text.length} chars -> ${finalTranslation.length} chars`);
+    return finalTranslation;
+    
   } catch (error) {
     console.error('Translation error:', error);
     return text; // Return original text if translation fails

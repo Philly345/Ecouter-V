@@ -2,7 +2,8 @@ import Head from 'next/head';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '../../components/AuthContext';
-import { getLanguageName } from '../../utils/languages';
+import { getLanguageName, translateText, SUPPORTED_LANGUAGES } from '../../utils/languages';
+
 import Sidebar from '../../components/Sidebar';
 import { 
   FiFileText, 
@@ -15,7 +16,9 @@ import {
   FiCopy,
   FiMessageSquare,
   FiSend,
-  FiCpu
+  FiCpu,
+  FiGlobe,
+  FiEdit
 } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 // import AnalyticsDashboard from '../../components/AnalyticsDashboardSimple';
@@ -45,6 +48,13 @@ export default function TranscriptView() {
   // Chat UX refs
   const chatMessagesRef = useRef(null);
   const chatInputRef = useRef(null);
+  
+  // Translation states
+  const [translatedTranscript, setTranslatedTranscript] = useState('');
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [showTranslateDropdown, setShowTranslateDropdown] = useState(false);
+  const [selectedTranslateLanguage, setSelectedTranslateLanguage] = useState('es');
+
 
   useEffect(() => {
     if (authChecked && !user) {
@@ -362,17 +372,61 @@ export default function TranscriptView() {
   };
 
   const copyToClipboard = () => {
-    if (!file || !file.transcript) return;
-    
-    navigator.clipboard.writeText(file.transcript)
-      .then(() => {
-        toast.success('Transcript copied to clipboard');
-      })
-      .catch((error) => {
-        console.error('Failed to copy transcript:', error);
-        toast.error('Failed to copy transcript');
+    const textToCopy = translatedTranscript || file.transcript || '';
+    navigator.clipboard.writeText(textToCopy).then(() => {
+      toast.success('Transcript copied to clipboard!', {
+        position: "top-right",
+        autoClose: 2000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
       });
+    }).catch(err => {
+      console.error('Failed to copy text: ', err);
+    });
   };
+
+  const translateTranscript = async (targetLanguage) => {
+    if (!file.transcript) {
+      toast.error('No transcript available to translate');
+      return;
+    }
+
+    setIsTranslating(true);
+    setShowTranslateDropdown(false);
+    
+    try {
+      const translated = await translateText(file.transcript, targetLanguage, 'en');
+      setTranslatedTranscript(translated);
+    } catch (error) {
+      console.error('Translation error:', error);
+    } finally {
+      setIsTranslating(false);
+    }
+  };
+
+  const resetTranslation = () => {
+    setTranslatedTranscript('');
+    toast.success('Showing original transcript');
+  };
+
+  const highlightSearchText = (text, searchTerm) => {
+    if (!searchTerm.trim()) {
+      return text;
+    }
+
+    const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    const parts = text.split(regex);
+    
+    return parts.map((part, index) => {
+      if (regex.test(part)) {
+        return `<mark class="bg-yellow-400 text-black px-1 rounded">${part}</mark>`;
+      }
+      return part;
+    }).join('');
+  };
+
 
   const exportTranscript = async (format) => {
     if (!file || exporting) return;
@@ -672,20 +726,113 @@ export default function TranscriptView() {
                           onChange={(e) => setSearchQuery(e.target.value)}
                         />
                       </div>
-                      <button
-                        onClick={copyToClipboard}
-                        className="py-1 px-3 bg-black border border-white/20 rounded flex items-center text-xs"
-                      >
-                        <FiCopy className="w-3 h-3 mr-1" />
-                        <span>Copy</span>
-                      </button>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => router.push(`/files/edit/${id}`)}
+                          className="py-1 px-3 bg-black border border-white/20 rounded flex items-center text-xs hover:bg-white/10 transition-colors"
+                        >
+                          <FiEdit className="w-3 h-3 mr-1" />
+                          <span>Edit</span>
+                        </button>
+                        <button
+                          onClick={copyToClipboard}
+                          className="py-1 px-3 bg-black border border-white/20 rounded flex items-center text-xs"
+                        >
+                          <FiCopy className="w-3 h-3 mr-1" />
+                          <span>Copy</span>
+                        </button>
+                        
+                        <div className="relative">
+                          <button
+                            onClick={() => setShowTranslateDropdown(!showTranslateDropdown)}
+                            disabled={isTranslating}
+                            className="py-1 px-3 bg-black border border-white/20 rounded flex items-center text-xs disabled:opacity-50"
+                          >
+                            <FiGlobe className="w-3 h-3 mr-1" />
+                            <span>{isTranslating ? 'Translating...' : 'Translate'}</span>
+                          </button>
+                          
+                          {showTranslateDropdown && (
+                            <div className="absolute right-0 mt-1 w-64 bg-black border border-white/20 rounded-lg shadow-lg z-10">
+                              <div className="p-3">
+                                <div className="text-xs text-white/60 mb-3">Translate to:</div>
+                                
+                                {/* Popular Languages Section */}
+                                <div className="mb-3">
+                                  <div className="text-xs text-white/40 mb-2">Popular Languages</div>
+                                  <div className="grid grid-cols-2 gap-1">
+                                    {SUPPORTED_LANGUAGES.slice(0, 12).map((lang) => (
+                                      <button
+                                        key={lang.code}
+                                        onClick={() => translateTranscript(lang.code)}
+                                        className="text-left px-2 py-1 text-xs hover:bg-white/10 rounded truncate"
+                                        title={lang.name}
+                                      >
+                                        {lang.name}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                                
+                                <hr className="border-white/10 my-2" />
+                                
+                                {/* All Languages Section */}
+                                <div>
+                                  <div className="text-xs text-white/40 mb-2">All Languages ({SUPPORTED_LANGUAGES.length})</div>
+                                  <div className="max-h-48 overflow-y-auto">
+                                    {SUPPORTED_LANGUAGES.map((lang) => (
+                                      <button
+                                        key={lang.code}
+                                        onClick={() => translateTranscript(lang.code)}
+                                        className="w-full text-left px-2 py-1 text-xs hover:bg-white/10 rounded flex justify-between items-center"
+                                      >
+                                        <span>{lang.name}</span>
+                                        {lang.needsTranslation && (
+                                          <span className="text-xs text-white/40">via EN</span>
+                                        )}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                                
+                                {translatedTranscript && (
+                                  <>
+                                    <hr className="border-white/10 my-2" />
+                                    <button
+                                      onClick={resetTranslation}
+                                      className="w-full text-left px-2 py-1 text-xs hover:bg-white/10 rounded text-white/60"
+                                    >
+                                      Show Original
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                     
                     <div className="bg-black border border-white/10 rounded-xl p-6 overflow-y-auto">
                       <div className="transcript text-sm">
                         {file.transcript ? (
                           <div className="whitespace-pre-wrap">
-                            {file.transcript}
+                            <div 
+                              dangerouslySetInnerHTML={{
+                                __html: highlightSearchText(translatedTranscript || file.transcript, searchQuery)
+                              }}
+                            />
+                            {translatedTranscript && (
+                              <div className="mt-4 pt-4 border-t border-white/10">
+                                <div className="text-xs text-white/60 mb-2">Translated content shown above. Original transcript:</div>
+                                <div 
+                                  className="text-xs text-white/40 whitespace-pre-wrap"
+                                  dangerouslySetInnerHTML={{
+                                    __html: highlightSearchText(file.transcript.substring(0, 200) + '...', searchQuery)
+                                  }}
+                                />
+                              </div>
+                            )}
                           </div>
                         ) : (
                           <p className="text-white/60">No transcript available</p>
@@ -701,15 +848,6 @@ export default function TranscriptView() {
                     <div>
                       <div className="flex justify-between items-center mb-4">
                         <h2 className="text-base text-green-400">AI Summary</h2>
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={copyToClipboard}
-                            className="py-1 px-3 bg-black border border-white/20 rounded flex items-center text-xs"
-                          >
-                            <FiCopy className="w-3 h-3 mr-1" />
-                            <span>Copy</span>
-                          </button>
-                        </div>
                       </div>
                       
                       <div className="bg-black rounded-xl p-4 border border-white/10">
@@ -773,48 +911,158 @@ export default function TranscriptView() {
                       <p className="text-xs text-white/60">Detailed breakdown with timestamps and speaker identification</p>
                     </div>
                     
-                    <div className="space-y-4">
-                      {file.timestamps && file.timestamps.length > 0 ? (
+                    <div className="bg-black rounded-xl border border-white/10">
+                      {(file.timestamps && file.timestamps.length > 0) || file.transcript ? (
                         (() => {
-                          // Create speaker mapping to assign consistent labels
-                          const speakerMap = {};
-                          let speakerCount = 0;
+                          // Helper function to format timestamp as HH:MM:SS
+                          const formatTimestamp = (milliseconds) => {
+                            const totalSeconds = Math.floor(milliseconds / 1000);
+                            const hours = Math.floor(totalSeconds / 3600);
+                            const minutes = Math.floor((totalSeconds % 3600) / 60);
+                            const seconds = totalSeconds % 60;
+                            return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                          };
                           
-                          // First pass: identify unique speakers
-                          file.timestamps.forEach(timestamp => {
-                            const originalSpeaker = timestamp.speaker || 'Unknown';
-                            if (!speakerMap[originalSpeaker]) {
-                              speakerCount++;
-                              speakerMap[originalSpeaker] = `Speaker ${String.fromCharCode(64 + speakerCount)}`; // A, B, C, etc.
+                          let formattedContent = '';
+                          
+                          // If we have proper utterance-level timestamps, use those
+                          if (file.timestamps && file.timestamps.length > 0 && file.timestamps[0].text && file.timestamps[0].text.split(' ').length > 5) {
+                            // This looks like utterance-level data (longer text segments)
+                            const speakerMap = {};
+                            let speakerIndex = 0;
+                            
+                            file.timestamps.forEach(timestamp => {
+                              const originalSpeaker = timestamp.speaker || 'A';
+                              if (!speakerMap[originalSpeaker]) {
+                                speakerMap[originalSpeaker] = speakerIndex++;
+                              }
+                            });
+                            
+                            formattedContent = file.timestamps.map((timestamp) => {
+                              const speakerNumber = speakerMap[timestamp.speaker || 'A'];
+                              const timestampFormatted = formatTimestamp(timestamp.start || 0);
+                              return `Speaker ${speakerNumber}    ${timestampFormatted}    ${timestamp.text}`;
+                            }).join('\n');
+                          } else {
+                            // Advanced conversation analysis for speaker detection
+                            const transcript = file.transcript || '';
+                            const text = transcript.replace(/\[END\]/g, '').trim();
+                            
+                            // Split into meaningful segments (sentences or phrases)
+                            const segments = [];
+                            let currentTime = 0;
+                            let currentSpeaker = 0;
+                            let lastSpeakerChange = 0;
+                            
+                            // Enhanced sentence splitting that handles various cases
+                            const sentences = text.split(/(?<=[.!?])\s+|(?<=\n)\s*/).filter(s => s.trim().length > 0);
+                            
+                            // Conversation analysis patterns
+                            const patterns = {
+                              questions: /\b(what|how|why|when|where|who|can|could|would|should|do|does|did|is|are|was|were)\b.*[?]/i,
+                              responses: /^(yes|no|well|actually|i think|i believe|in my opinion|personally|honestly|that's|it's|i'm|i am|i have|i've|i would|i'll|i can|i could|i should|i must|i need|i want|i feel)/i,
+                              transitions: /\b(but|however|although|though|on the other hand|meanwhile|actually|frankly|anyway|so|and then|next|now|alright|okay|right)\b/i,
+                              address: /\b(you know|you see|listen|look|hey|so|mr|mrs|ms|miss|sir|madam|prakash|prakashji)\b/i,
+                              affirmations: /\b(yes|yeah|yep|sure|absolutely|definitely|certainly|of course|exactly|precisely|indeed|agreed|i agree|that's right|correct|right)\b/i,
+                              negations: /\b(no|nope|nah|not really|i don't think so|i disagree|that's not right|incorrect|wrong)\b/i
+                            };
+                            
+                            // Analyze conversation flow
+                            for (let i = 0; i < sentences.length; i++) {
+                              const sentence = sentences[i].trim();
+                              if (!sentence) continue;
+                              
+                              const prevSentence = i > 0 ? sentences[i-1]?.trim() : '';
+                              const nextSentence = i < sentences.length - 1 ? sentences[i+1]?.trim() : '';
+                              
+                              // Check for speaker change conditions
+                              let changeSpeaker = false;
+                              
+                              // 1. Question-Response pattern
+                              if (patterns.questions.test(prevSentence) && patterns.responses.test(sentence)) {
+                                changeSpeaker = true;
+                              }
+                              
+                              // 2. Direct address or transition words
+                              if (patterns.address.test(sentence) || patterns.transitions.test(sentence)) {
+                                if (i - lastSpeakerChange > 1) { // Don't switch too often
+                                  changeSpeaker = true;
+                                }
+                              }
+                              
+                              // 3. Alternating speakers after certain length
+                              if (i - lastSpeakerChange >= 3) {
+                                changeSpeaker = true;
+                              }
+                              
+                              // 4. Response to affirmation/negation
+                              if ((patterns.affirmations.test(sentence) || patterns.negations.test(sentence)) && 
+                                  !patterns.questions.test(prevSentence)) {
+                                changeSpeaker = true;
+                              }
+                              
+                              // Apply speaker change if needed
+                              if (changeSpeaker && i > 0) {
+                                currentSpeaker = currentSpeaker === 0 ? 1 : 0;
+                                lastSpeakerChange = i;
+                              }
+                              
+                              // Estimate timing based on word count (average 2.5 words per second)
+                              const wordCount = sentence.split(/\s+/).length;
+                              const estimatedDuration = Math.max(wordCount / 2.5, 2); // minimum 2 seconds
+                              
+                              // Add the segment
+                              segments.push({
+                                speaker: currentSpeaker,
+                                timestamp: formatTimestamp(currentTime * 1000),
+                                text: sentence.charAt(0).toUpperCase() + sentence.slice(1).replace(/\.+$/, '') + '.'
+                              });
+                              
+                              currentTime += estimatedDuration;
                             }
-                          });
+                            
+                            // Post-processing to ensure natural conversation flow
+                            if (segments.length > 3) {
+                              // Ensure we have at least 2 speakers
+                              const speakerCount = new Set(segments.map(s => s.speaker)).size;
+                              if (speakerCount === 1) {
+                                // Force alternating speakers if only one detected
+                                segments.forEach((seg, idx) => {
+                                  if (idx > 0) seg.speaker = idx % 2;
+                                });
+                              }
+                              
+                              // Ensure no single speaker has too many consecutive segments
+                              let consecutiveSameSpeaker = 1;
+                              for (let i = 1; i < segments.length; i++) {
+                                if (segments[i].speaker === segments[i-1].speaker) {
+                                  consecutiveSameSpeaker++;
+                                  if (consecutiveSameSpeaker > 4) { // Max 4 segments per speaker
+                                    segments[i].speaker = segments[i].speaker === 0 ? 1 : 0;
+                                    consecutiveSameSpeaker = 1;
+                                  }
+                                } else {
+                                  consecutiveSameSpeaker = 1;
+                                }
+                              }
+                            }
+                            
+                            formattedContent = segments.map(segment => 
+                              `Speaker ${segment.speaker}    ${segment.timestamp}    ${segment.text}`
+                            ).join('\n');
+                          }
                           
-                          return file.timestamps.map((timestamp, index) => (
-                            <div key={index} className="bg-black rounded-xl p-4 border border-white/10">
-                              <div className="flex items-center mb-2">
-                                <div className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center mr-4">
-                                  <span className="font-medium text-sm">
-                                    {speakerMap[timestamp.speaker || 'Unknown']?.split(' ')[1] || 'A'}
-                                  </span>
-                                </div>
-                                <div className="flex-1">
-                                  <div className="flex items-center mb-1">
-                                    <span className="text-xs text-white/60 mr-2">
-                                      {speakerMap[timestamp.speaker || 'Unknown'] || 'Speaker A'}
-                                    </span>
-                                  </div>
-                                  <p className="text-sm">{timestamp.text}</p>
-                                </div>
-                              </div>
-                              <div className="text-white/60 text-xs pl-12">
-                                {timestamp.start ? `${Math.floor(timestamp.start / 1000 / 60)}:${Math.floor((timestamp.start / 1000) % 60).toString().padStart(2, '0')}` : '0:00'} - 
-                                {timestamp.end ? `${Math.floor(timestamp.end / 1000 / 60)}:${Math.floor((timestamp.end / 1000) % 60).toString().padStart(2, '0')}` : '0:00'}
-                              </div>
+                          return (
+                            <div className="p-6">
+                              <pre className="text-sm leading-relaxed whitespace-pre-wrap font-mono">
+                                {formattedContent}
+                                {"\n\n[END]"}
+                              </pre>
                             </div>
-                          ));
+                          );
                         })()
                       ) : (
-                        <div className="bg-black rounded-xl p-4 border border-white/10">
+                        <div className="p-6">
                           <p className="text-white/60 text-sm">No timestamp data available. Enable timestamps during transcription to see detailed breakdown.</p>
                         </div>
                       )}

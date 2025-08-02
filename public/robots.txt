@@ -4,10 +4,31 @@ Allow: /
 # Sitemap location
 Sitemap: https://ecoutertranscribe.tech/sitemap.xml
 
-# Allow all crawlers to access the site since it's free
-# Block only sensitive API endpoints
+# Crawl-delay: 10  # Uncomment if needed to limit crawl rate
+
+# Disallow sensitive areas
 Disallow: /api/
 Disallow: /admin/
+Disallow: /dashboard/
+Disallow: /account/
+Disallow: /*?*
+
+# Allow all other pages
+Allow: /*.css$
+Allow: /*.js$
+Allow: /*.png$
+Allow: /*.jpg$
+Allow: /*.jpeg$
+Allow: /*.gif$
+Allow: /*.svg$
+Allow: /*.webp$
+
+# Allow all major search engines
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
 Disallow: /_next/
 Disallow: /debug-upload
 Disallow: /test-upload

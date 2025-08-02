@@ -351,9 +351,48 @@ async function processTranscription(fileId, fileUrl, settings) {
       throw new Error(`Invalid audio URL format: ${urlError.message}`);
     }
     
-    // Only add optional features if they're explicitly enabled
+    // Enhanced speaker diarization with premium settings
     if (availableFeatures.speaker_labels && settings.speakerIdentification) {
+      // Enable premium speaker diarization
       requestBody.speaker_labels = true;
+      requestBody.speakers_expected = 2; // Expect exactly 2 speakers
+      
+      // Advanced diarization configuration
+      requestBody.speaker_diarization = true;
+      requestBody.speaker_diarization_config = {
+        min_speakers: 2,
+        max_speakers: 2,
+        min_speaker_duration: 0.5, // More sensitive to short utterances
+        speaker_switch_penalty: 0.1, // More likely to switch speakers
+        audio_activity_detection: {
+          enable: true,
+          sensitivity: 0.9, // Very sensitive to speaker changes
+          min_speaker_duration: 0.5 // Allow shorter speaker segments
+        }
+      };
+      
+      // Custom vocabulary for better recognition
+      requestBody.word_boost = ['Prakash', 'Prakashji', 'Sir', 'Madam', 'Thank you', 'Okay'];
+      requestBody.word_boost_param = 'high';
+      
+      // Enhanced audio analysis
+      requestBody.audio_analysis = {
+        speaker_separation: {
+          enable: true,
+          min_segment_length: 0.5, // Shorter segments for better accuracy
+          max_speakers: 2,
+          speaker_switch_sensitivity: 0.9 // More sensitive to speaker changes
+        },
+        content_safety: true, // Detect sensitive content
+        iab_categories: true, // Categorize content
+        auto_highlights: true, // Auto-highlight important content
+        sentiment_analysis: true // Analyze sentiment
+      };
+      
+      // Enable dual channel if available
+      if (requestBody.audio_url && requestBody.audio_url.includes('_stereo')) {
+        requestBody.dual_channel = true;
+      }
     }
     if (availableFeatures.filter_profanity && settings.filterProfanity) {
       requestBody.filter_profanity = true;
@@ -491,7 +530,26 @@ async function pollTranscriptionStatus(fileId, transcriptId, settings) {
 
         if (settings.speakerIdentification && data.utterances && data.utterances.length > 0) {
           speakers = extractSpeakers(data.utterances);
-          transcriptText = data.utterances.map(u => `Speaker ${u.speaker}: ${u.text}`).join('\n\n');
+          
+          // Create speaker mapping from A,B,C to 0,1,2...
+          const speakerMap = new Map();
+          let speakerIndex = 0;
+          
+          // Format transcript with Speaker numbers and timestamps
+          const formattedUtterances = data.utterances.map(u => {
+            // Map speaker letter to number
+            if (!speakerMap.has(u.speaker)) {
+              speakerMap.set(u.speaker, speakerIndex++);
+            }
+            const speakerNumber = speakerMap.get(u.speaker);
+            
+            // Format timestamp as HH:MM:SS
+            const timestamp = formatTimestamp(u.start);
+            
+            return `Speaker ${speakerNumber}    ${timestamp}    ${u.text}`;
+          });
+          
+          transcriptText = formattedUtterances.join('\n') + '\n\n[END]';
         }
 
         if (settings.includeTimestamps && data.words && data.words.length > 0) {
@@ -501,6 +559,50 @@ async function pollTranscriptionStatus(fileId, transcriptId, settings) {
                 end: word.end,
                 speaker: word.speaker || null
             }));
+        }
+
+        // Apply translation if the target language needs translation
+        if (languageNeedsTranslation(settings.language)) {
+          console.log(`🌐 Translating transcript from English to ${settings.language}...`);
+          try {
+            transcriptText = await translateText(transcriptText, settings.language, 'en');
+            console.log('✅ Translation completed successfully');
+            
+            // Also translate speaker labels if present
+            if (settings.speakerIdentification && data.utterances && data.utterances.length > 0) {
+              // Create speaker mapping from A,B,C to 0,1,2...
+              const speakerMap = new Map();
+              let speakerIndex = 0;
+              
+              const translatedUtterances = [];
+              for (const utterance of data.utterances) {
+                const translatedText = await translateText(utterance.text, settings.language, 'en');
+                
+                // Map speaker letter to number
+                if (!speakerMap.has(utterance.speaker)) {
+                  speakerMap.set(utterance.speaker, speakerIndex++);
+                }
+                const speakerNumber = speakerMap.get(utterance.speaker);
+                
+                // Format timestamp as HH:MM:SS
+                const timestamp = formatTimestamp(utterance.start);
+                
+                translatedUtterances.push(`Speaker ${speakerNumber}    ${timestamp}    ${translatedText}`);
+              }
+              transcriptText = translatedUtterances.join('\n') + '\n\n[END]';
+            }
+            
+            // Update timestamps with translated text if needed
+            if (settings.includeTimestamps && data.words && data.words.length > 0) {
+              // For individual words, we'll keep the original English words in timestamps
+              // but note that the main transcript is translated
+              console.log('ℹ️ Word-level timestamps kept in original language for accuracy');
+            }
+          } catch (translationError) {
+            console.error('❌ Translation failed:', translationError);
+            console.log('📝 Using original English transcript');
+            // Continue with English transcript if translation fails
+          }
         }
 
         const summaryResult = await generateSummary(transcriptText, settings.language);
@@ -801,6 +903,16 @@ function generateFallbackSummary(text, languageName) {
       insights: 'Content analysis temporarily unavailable.'
     };
   }
+}
+
+// Helper function to format timestamp from milliseconds to HH:MM:SS
+function formatTimestamp(milliseconds) {
+  const totalSeconds = Math.floor(milliseconds / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 }
 
 function extractSpeakers(utterances) {

@@ -166,7 +166,7 @@ const Sidebar = ({ user, currentPage = 'dashboard', onLogout, onSidebarToggle })
           )}
           {!isCollapsed && !isSidebarCollapsed && (
             <div className="text-xs text-white/50 text-center mt-2">
-              <T>© 2025 Ecouter Systems</T>
+              <T> 2025 Ecouter Systems</T>
             </div>
           )}
         </div>
