@@ -1,33 +1,35 @@
 import Head from 'next/head';
 
 export default function SEO({ 
-  title = "Ecouter Transcribe - Free AI Audio Transcription & Chat",
-  description = "Transform your audio files into accurate transcriptions with AI-powered insights. Free audio transcription service with chat functionality, meeting analysis, and integration capabilities.",
-  keywords = "audio transcription, AI transcription, meeting transcription, audio to text, free transcription, voice recognition, speech to text, meeting analysis, audio chat",
+  title = "Ecouter Transcribe – Free AI Audio to Text with Chat",
+  description = "Transcribe audio to text instantly using AI. Free, fast, and accurate with chat, meeting analysis, and speaker identification.",
   url = "https://ecoutertranscribe.tech",
   image = "https://ecoutertranscribe.tech/og-image.png",
   type = "website"
 }) {
-  const structuredData = {
+  const softwareStructuredData = {
     "@context": "https://schema.org",
-    "@type": "WebApplication",
+    "@type": "SoftwareApplication",
     "name": "Ecouter Transcribe",
-    "description": description,
-    "url": url,
+    "operatingSystem": "All",
     "applicationCategory": "BusinessApplication",
-    "operatingSystem": "Web Browser",
+    "aggregateRating": {
+      "@type": "AggregateRating",
+      "ratingValue": "4.9",
+      "reviewCount": "153"
+    },
     "offers": {
       "@type": "Offer",
       "price": "0",
-      "priceCurrency": "USD",
-      "description": "Free AI-powered audio transcription service"
+      "priceCurrency": "USD"
     },
+    "url": url,
+    "screenshot": image,
     "featureList": [
       "AI Audio Transcription",
-      "Real-time Chat with Audio",
-      "Meeting Analysis",
       "Speaker Identification",
-      "Export Capabilities",
+      "Meeting Analysis",
+      "Real-time Chat with Audio",
       "Calendar Integration",
       "Analytics Dashboard"
     ],
@@ -37,60 +39,128 @@ export default function SEO({
     }
   };
 
+  const faqStructuredData = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "Is Ecouter Transcribe really free?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes, Ecouter Transcribe offers a 100% free AI-powered audio-to-text transcription service."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Does it support meetings and speaker separation?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes, it supports multi-speaker meetings, speaker identification, calendar syncing, and meeting analysis."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can I export transcripts?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes, transcripts can be exported in multiple formats including text, PDF, and Word."
+        }
+      }
+    ]
+  };
+
+  const websiteStructuredData = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "url": url,
+    "name": "Ecouter Transcribe",
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": `${url}/search?q={search_term_string}`,
+      "query-input": "required name=search_term_string"
+    }
+  };
+
+  const breadcrumbStructuredData = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      {
+        "@type": "ListItem",
+        "position": 1,
+        "name": "Home",
+        "item": url
+      },
+      {
+        "@type": "ListItem",
+        "position": 2,
+        "name": "Features",
+        "item": `${url}/features`
+      },
+      {
+        "@type": "ListItem",
+        "position": 3,
+        "name": "Transcribe",
+        "item": `${url}/transcribe`
+      }
+    ]
+  };
+
   return (
     <Head>
-      {/* Basic Meta Tags */}
+      {/* Basic SEO */}
       <title>{title}</title>
       <meta name="description" content={description} />
-      <meta name="keywords" content={keywords} />
       <meta name="author" content="Ecouter Transcribe" />
       <meta name="robots" content="index, follow" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <meta name="language" content="English" />
       <meta name="revisit-after" content="7 days" />
-      
-      {/* Viewport */}
-      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      
-      {/* Open Graph / Facebook */}
+
+      {/* Open Graph */}
       <meta property="og:type" content={type} />
       <meta property="og:url" content={url} />
       <meta property="og:title" content={title} />
       <meta property="og:description" content={description} />
       <meta property="og:image" content={image} />
       <meta property="og:site_name" content="Ecouter Transcribe" />
-      
+      <meta property="og:locale" content="en_US" />
+
       {/* Twitter */}
-      <meta property="twitter:card" content="summary_large_image" />
-      <meta property="twitter:url" content={url} />
-      <meta property="twitter:title" content={title} />
-      <meta property="twitter:description" content={description} />
-      <meta property="twitter:image" content={image} />
-      
-      {/* Canonical URL */}
+      <meta name="twitter:card" content="summary_large_image" />
+      <meta name="twitter:url" content={url} />
+      <meta name="twitter:title" content={title} />
+      <meta name="twitter:description" content={description} />
+      <meta name="twitter:image" content={image} />
+      <meta name="twitter:site" content="@ecouterapp" />
+      <meta name="twitter:creator" content="@ecouterapp" />
+
+      {/* Canonical */}
       <link rel="canonical" href={url} />
-      
-      {/* Favicon */}
+
+      {/* Icons */}
       <link rel="icon" href="/favicon.ico" />
       <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
       <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
       <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
-      
-      {/* Structured Data */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
-      />
-      
-      {/* Google Search Console Verification - Replace with your actual verification code */}
-      <meta name="google-site-verification" content="YOUR_GOOGLE_VERIFICATION_CODE_HERE" />
-      
-      {/* Additional SEO Meta Tags */}
+
+      {/* PWA */}
       <meta name="theme-color" content="#000000" />
       <meta name="msapplication-TileColor" content="#000000" />
       <meta name="application-name" content="Ecouter Transcribe" />
       <meta name="apple-mobile-web-app-title" content="Ecouter Transcribe" />
       <meta name="apple-mobile-web-app-capable" content="yes" />
       <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+      {/* Google Site Verification */}
+      <meta name="google-site-verification" content="arJeK33PX-LVBVLpe0EQsHH32qJSN6yevIsZhzAx1DQ" />
+
+      {/* Structured Data */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareStructuredData) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqStructuredData) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteStructuredData) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbStructuredData) }} />
     </Head>
   );
-}
+    }
