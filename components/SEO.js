@@ -136,7 +136,7 @@ export default function SEO({
 
       {/* Site Verifications */}
       <meta name="google-site-verification" content="arJeK33PX-LVBVLpe0EQsHH32qJSN6yevIsZhzAx1DQ" />
-      <meta name="msvalidate.01" content="DA2E782E4842B6365F56165ACE16018E" /> {/* Bing Webmaster Tools */}
+      <meta name="msvalidate.01" content="53E3017973ACFF5BAE8B0B6FF125DFD8" /> {/* Bing Webmaster Tools */}
 
       {/* Open Graph */}
       <meta property="og:type" content={type} />
