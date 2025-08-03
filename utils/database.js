@@ -1,103 +1,104 @@
 
-import fs from 'fs';
-import path from 'path';
+import { connectDB } from '../lib/mongodb';
 
 // Check if we're in a serverless environment (like Vercel)
 const isServerless = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.NODE_ENV === 'production';
 
-let dataDir, usersFile, filesFile;
-let filesystemAvailable = false;
-
-if (!isServerless) {
-  // Only set up file system in development/local environments
-  try {
-    dataDir = path.join(process.cwd(), 'data');
-    
-    // Ensure data directory exists
-    if (!fs.existsSync(dataDir)) {
-      fs.mkdirSync(dataDir, { recursive: true });
-    }
-    
-    usersFile = path.join(dataDir, 'users.json');
-    filesFile = path.join(dataDir, 'files.json');
-    
-    // Initialize files if they don't exist
-    const initFile = (filePath, defaultData = []) => {
-      if (!fs.existsSync(filePath)) {
-        fs.writeFileSync(filePath, JSON.stringify(defaultData, null, 2));
-      }
-    };
-    
-    initFile(usersFile);
-    initFile(filesFile);
-    filesystemAvailable = true;
-  } catch (error) {
-    console.warn('File system not available, skipping file-based database initialization:', error.message);
-    filesystemAvailable = false;
-  }
-}
+// MongoDB collection names
+const USERS_COLLECTION = 'users';
 
 // Users database
 export const usersDB = {
-  getAll: () => {
-    if (!filesystemAvailable) {
-      console.warn('File system not available, returning empty user list');
+  // Get all users (for admin purposes, use with caution)
+  getAll: async () => {
+    if (!isServerless) {
+      // In development, you might want to keep file-based fallback
       return [];
     }
+    
     try {
-      const data = fs.readFileSync(usersFile, 'utf8');
-      return JSON.parse(data);
+      const { db } = await connectDB();
+      return await db.collection(USERS_COLLECTION).find({}).toArray();
     } catch (error) {
-      console.warn('Error reading users file:', error.message);
+      console.error('Error fetching users from MongoDB:', error);
       return [];
     }
   },
 
-  save: (users) => {
-    if (!filesystemAvailable) {
-      console.warn('File system not available, cannot save users');
-      return;
+  // Find user by email
+  findByEmail: async (email) => {
+    if (!isServerless) {
+      // In development, you might want to keep file-based fallback
+      return null;
     }
+    
     try {
-      fs.writeFileSync(usersFile, JSON.stringify(users, null, 2));
+      const { db } = await connectDB();
+      return await db.collection(USERS_COLLECTION).findOne({ email });
     } catch (error) {
-      console.error('Error saving users file:', error.message);
+      console.error('Error finding user by email:', error);
+      return null;
     }
   },
 
-  findByEmail: (email) => {
-    if (!filesystemAvailable) {
-      console.warn('File system not available, cannot find user by email');
+  // Find user by ID
+  findById: async (id) => {
+    if (!isServerless) {
+      // In development, you might want to keep file-based fallback
       return null;
     }
-    const users = usersDB.getAll();
-    return users.find(user => user.email === email);
+    
+    try {
+      const { db } = await connectDB();
+      return await db.collection(USERS_COLLECTION).findOne({ _id: id });
+    } catch (error) {
+      console.error('Error finding user by ID:', error);
+      return null;
+    }
   },
 
-  findById: (id) => {
-    if (!filesystemAvailable) {
-      console.warn('File system not available, cannot find user by id');
+  // Create a new user
+  create: async (userData) => {
+    if (!isServerless) {
+      // In development, you might want to keep file-based fallback
       return null;
     }
-    const users = usersDB.getAll();
-    return users.find(user => user.id === id);
+    
+    try {
+      const { db } = await connectDB();
+      const now = new Date();
+      const newUser = {
+        ...userData,
+        createdAt: now,
+        updatedAt: now,
+      };
+      
+      const result = await db.collection(USERS_COLLECTION).insertOne(newUser);
+      return { ...newUser, _id: result.insertedId };
+    } catch (error) {
+      console.error('Error creating user:', error);
+      return null;
+    }
   },
-
-  create: (userData) => {
-    if (!filesystemAvailable) {
-      console.warn('File system not available, cannot create user');
+  
+  // Update a user
+  update: async (id, updateData) => {
+    if (!isServerless) {
+      // In development, you might want to keep file-based fallback
       return null;
     }
-    const users = usersDB.getAll();
-    const newUser = {
-      id: Date.now().toString(),
-      ...userData,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    users.push(newUser);
-    usersDB.save(users);
-    return newUser;
+    
+    try {
+      const { db } = await connectDB();
+      const result = await db.collection(USERS_COLLECTION).updateOne(
+        { _id: id },
+        { $set: { ...updateData, updatedAt: new Date() } }
+      );
+      return result;
+    } catch (error) {
+      console.error('Error updating user:', error);
+      return null;
+    }
   },
 
   update: (id, updateData) => {
@@ -120,86 +121,156 @@ export const usersDB = {
   },
 };
 
+// MongoDB collection name for files
+const FILES_COLLECTION = 'files';
+
 // Files database
 export const filesDB = {
-  getAll: () => {
-    if (!filesystemAvailable) {
-      console.warn('File system not available, returning empty files list');
+  // Get all files (use with caution)
+  getAll: async () => {
+    if (!isServerless) {
       return [];
     }
+    
     try {
-      const data = fs.readFileSync(filesFile, 'utf8');
-      return JSON.parse(data);
+      const { db } = await connectDB();
+      return await db.collection(FILES_COLLECTION).find({}).toArray();
     } catch (error) {
-      console.warn('Error reading files file:', error.message);
+      console.error('Error fetching files from MongoDB:', error);
       return [];
     }
   },
 
-  save: (files) => {
-    if (!filesystemAvailable) {
-      console.warn('File system not available, cannot save files');
-      return;
+  // Find files by user ID
+  findByUserId: async (userId) => {
+    if (!isServerless) {
+      return [];
     }
+    
     try {
-      fs.writeFileSync(filesFile, JSON.stringify(files, null, 2));
+      const { db } = await connectDB();
+      return await db.collection(FILES_COLLECTION)
+        .find({ userId })
+        .sort({ createdAt: -1 })
+        .toArray();
     } catch (error) {
-      console.error('Error saving files file:', error.message);
+      console.error('Error finding files by user ID:', error);
+      return [];
     }
   },
 
-  findByUserId: (userId) => {
-    const files = filesDB.getAll();
-    return files.filter(file => file.userId === userId);
+  // Find file by ID
+  findById: async (id) => {
+    if (!isServerless) {
+      return null;
+    }
+    
+    try {
+      const { db } = await connectDB();
+      return await db.collection(FILES_COLLECTION).findOne({ _id: id });
+    } catch (error) {
+      console.error('Error finding file by ID:', error);
+      return null;
+    }
   },
 
-  findById: (id) => {
-    const files = filesDB.getAll();
-    return files.find(file => file.id === id);
-  },
-
-  create: (fileData) => {
-    const files = filesDB.getAll();
-    const newFile = {
-      id: Date.now().toString(),
-      ...fileData,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    files.push(newFile);
-    filesDB.save(files);
-    return newFile;
-  },
-
-  update: (id, updateData) => {
-    const files = filesDB.getAll();
-    const index = files.findIndex(file => file.id === id);
-    if (index !== -1) {
-      files[index] = {
-        ...files[index],
-        ...updateData,
-        updatedAt: new Date().toISOString(),
+  // Create a new file
+  create: async (fileData) => {
+    if (!isServerless) {
+      return null;
+    }
+    
+    try {
+      const { db } = await connectDB();
+      const now = new Date();
+      const newFile = {
+        ...fileData,
+        createdAt: now,
+        updatedAt: now,
       };
-      filesDB.save(files);
-      return files[index];
+      
+      const result = await db.collection(FILES_COLLECTION).insertOne(newFile);
+      return { ...newFile, _id: result.insertedId };
+    } catch (error) {
+      console.error('Error creating file:', error);
+      return null;
     }
-    return null;
   },
 
-  delete: (id) => {
-    const files = filesDB.getAll();
-    const filteredFiles = files.filter(file => file.id !== id);
-    filesDB.save(filteredFiles);
-    return true;
+  // Update a file
+  update: async (id, updateData) => {
+    if (!isServerless) {
+      return null;
+    }
+    
+    try {
+      const { db } = await connectDB();
+      const result = await db.collection(FILES_COLLECTION).updateOne(
+        { _id: id },
+        { $set: { ...updateData, updatedAt: new Date() } }
+      );
+      
+      if (result.matchedCount === 0) {
+        return null;
+      }
+      
+      return await filesDB.findById(id);
+    } catch (error) {
+      console.error('Error updating file:', error);
+      return null;
+    }
   },
 
-  getByStatus: (userId, status) => {
-    const files = filesDB.findByUserId(userId);
-    return files.filter(file => file.status === status);
+  // Delete a file
+  delete: async (id) => {
+    if (!isServerless) {
+      return false;
+    }
+    
+    try {
+      const { db } = await connectDB();
+      const result = await db.collection(FILES_COLLECTION).deleteOne({ _id: id });
+      return result.deletedCount > 0;
+    } catch (error) {
+      console.error('Error deleting file:', error);
+      return false;
+    }
   },
 
-  getStorageUsed: (userId) => {
-    const files = filesDB.findByUserId(userId);
-    return files.reduce((total, file) => total + (file.size || 0), 0);
+  // Get files by status for a user
+  getByStatus: async (userId, status) => {
+    if (!isServerless) {
+      return [];
+    }
+    
+    try {
+      const { db } = await connectDB();
+      return await db.collection(FILES_COLLECTION)
+        .find({ userId, status })
+        .sort({ createdAt: -1 })
+        .toArray();
+    } catch (error) {
+      console.error('Error getting files by status:', error);
+      return [];
+    }
+  },
+
+  getStorageUsed: async (userId) => {
+    if (!isServerless) {
+      return 0;
+    }
+    
+    try {
+      const { db } = await connectDB();
+      const result = await db.collection(FILES_COLLECTION).aggregate([
+        { $match: { userId } },
+        { $group: { _id: null, total: { $sum: '$size' } } }
+      ]).toArray();
+      
+      return result[0]?.total || 0;
+    } catch (error) {
+      console.error('Error calculating storage used:', error);
+      return 0;
+    }
   },
 };

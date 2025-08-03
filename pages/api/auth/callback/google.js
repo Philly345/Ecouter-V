@@ -16,6 +16,11 @@ export default async function handler(req, res) {
     // Exchange code for token
     const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'https://ecoutertranscribe.tech/api/auth/callback/google';
     
+    // Debug logging
+    console.log('Google Callback Debug:');
+    console.log('GOOGLE_REDIRECT_URI env var:', process.env.GOOGLE_REDIRECT_URI);
+    console.log('Final redirectUri:', redirectUri);
+    
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: {

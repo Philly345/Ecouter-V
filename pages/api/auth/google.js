@@ -12,6 +12,12 @@ export default async function handler(req, res) {
     // Use environment variable with fallback to production domain
     const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'https://ecoutertranscribe.tech/api/auth/callback/google';
     
+    // Debug logging
+    console.log('Google OAuth Debug:');
+    console.log('GOOGLE_REDIRECT_URI env var:', process.env.GOOGLE_REDIRECT_URI);
+    console.log('Final redirectUri:', redirectUri);
+    console.log('GOOGLE_CLIENT_ID:', process.env.GOOGLE_CLIENT_ID);
+    
     const params = new URLSearchParams({
       client_id: process.env.GOOGLE_CLIENT_ID,
       redirect_uri: redirectUri,
