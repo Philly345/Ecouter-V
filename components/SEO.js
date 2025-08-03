@@ -187,6 +187,16 @@ export default function SEO({
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqStructuredData) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteStructuredData) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbStructuredData) }} />
+      {/* Google Analytics (GA4) */}
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-Q0FM9G43P3"></script>
+      <script dangerouslySetInnerHTML={{
+        __html: `
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-Q0FM9G43P3');
+        `,
+      }} />
     </Head>
   );
-    }
+}
