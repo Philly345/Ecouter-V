@@ -55,11 +55,11 @@ export default async function handler(req, res) {
     }
 
     // Check if user exists
-    let user = usersDB.findByEmail(googleUser.email);
+    let user = await usersDB.findByEmail(googleUser.email);
 
     if (!user) {
       // Create new user
-      user = usersDB.create({
+      user = await usersDB.create({
         name: googleUser.name || googleUser.email.split('@')[0],
         email: googleUser.email,
         provider: 'google',
@@ -71,7 +71,7 @@ export default async function handler(req, res) {
       });
     } else {
       // Update existing user with Google info
-      user = usersDB.update(user.id, {
+      user = await usersDB.update(user._id, {
         googleId: googleUser.id,
         avatar: googleUser.picture,
       });
@@ -79,7 +79,7 @@ export default async function handler(req, res) {
 
     // Generate JWT token
     const token = generateToken({ 
-      userId: user.id, 
+      userId: user._id, // MongoDB uses _id as the primary key
       email: user.email, 
       name: user.name 
     });
