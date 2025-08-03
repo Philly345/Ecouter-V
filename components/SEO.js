@@ -1,7 +1,7 @@
 import Head from 'next/head';
 
 export default function SEO({
-  title = "Ecouter - AI Transcription Service",
+  title = "Ecouter - AI Transcription Software",
   description = "Transform audio into intelligent insights. Advanced AI-powered transcription with speaker identification, sentiment analysis, and intelligent summaries.",
   url = "https://ecoutertranscribe.tech",
   image = "https://ecoutertranscribe.tech/og-image.png",
