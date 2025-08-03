@@ -134,6 +134,10 @@ export default function SEO({
       <meta name="language" content="English" />
       <meta name="revisit-after" content="7 days" />
 
+      {/* Site Verifications */}
+      <meta name="google-site-verification" content="arJeK33PX-LVBVLpe0EQsHH32qJSN6yevIsZhzAx1DQ" />
+      <meta name="msvalidate.01" content="DA2E782E4842B6365F56165ACE16018E" /> {/* Bing Webmaster Tools */}
+
       {/* Open Graph */}
       <meta property="og:type" content={type} />
       <meta property="og:url" content={url} />
@@ -168,9 +172,6 @@ export default function SEO({
       <meta name="apple-mobile-web-app-title" content="Ecouter Transcribe" />
       <meta name="apple-mobile-web-app-capable" content="yes" />
       <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-
-      {/* Google Site Verification */}
-      <meta name="google-site-verification" content="arJeK33PX-LVBVLpe0EQsHH32qJSN6yevIsZhzAx1DQ" />
 
       {/* Structured Data */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareStructuredData) }} />
