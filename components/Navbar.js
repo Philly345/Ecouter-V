@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
+import Image from 'next/image';
 import T from './T';
 import LanguageSelector from './LanguageSelector';
 
@@ -35,8 +36,14 @@ const Navbar = ({ user, onLogout }) => {
         <div className="flex justify-between items-center h-12 navbar-container">
           {/* Logo */}
           <Link href="/home" className="flex items-center space-x-2">
-            <div className="w-6 h-6 bg-gradient-to-r from-white to-gray-400 rounded-full"></div>
-            <span className="text-lg font-bold gradient-text">Ecouter Transcribe</span>
+            <Image 
+              src="/logo-new.png" 
+              alt="Ecouter Logo" 
+              width={32} 
+              height={32} 
+              className="w-8 h-8 object-contain"
+            />
+            <span className="text-lg font-bold gradient-text">Ecouter</span>
           </Link>
 
           {/* Navigation Links */}

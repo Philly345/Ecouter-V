@@ -1,7 +1,7 @@
 import Head from 'next/head';
 
 export default function SEO({
-  title = "Ecouter Transcribe – Smart AI-Powered Transcription",
+  title = "Ecouter - AI Transcription Service",
   description = "Transform audio into intelligent insights. Advanced AI-powered transcription with speaker identification, sentiment analysis, and intelligent summaries.",
   url = "https://ecoutertranscribe.tech",
   image = "https://ecoutertranscribe.tech/og-image.png",
@@ -161,9 +161,18 @@ export default function SEO({
 
       {/* Icons */}
       <link rel="icon" href="/favicon.ico" />
+      <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+      <link rel="shortcut icon" href="/favicon.ico" />
       <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
       <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
       <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+      {/* Organization Logo for Google */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "url": url,
+        "logo": `${url}/logo-new.png`
+      }) }} />
 
       {/* PWA */}
       <meta name="theme-color" content="#000000" />

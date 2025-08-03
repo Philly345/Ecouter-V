@@ -121,7 +121,7 @@ export default function Dashboard() {
           {/* Header */}
           <div className="mb-8">
             <h1 className="text-2xl font-bold gradient-text mb-2">
-              Welcome, Developer 1
+              Welcome, {user?.name?.split(' ')[0] || 'User'}
             </h1>
             <p className="text-white/60">
               <T>Here's what's happening with your transcriptions</T>

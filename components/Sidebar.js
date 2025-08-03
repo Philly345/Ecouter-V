@@ -8,6 +8,7 @@ import {
   FiPlay, 
   FiCheck, 
   FiHardDrive,
+  FiMic,
   FiMenu,
   FiX,
   FiLogOut,
