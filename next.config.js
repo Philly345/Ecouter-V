@@ -12,8 +12,9 @@ const nextConfig = {
   publicRuntimeConfig: {
     // Will be available on both server and client
     maxFileSize: '500mb',
+    siteUrl: process.env.NEXT_PUBLIC_SITE_URL || 'https://ecoutertranscribe.tech',
   },
-  // Simple config for Render deployment
+  // Configure redirects
   async redirects() {
     return [
       {
@@ -22,6 +23,10 @@ const nextConfig = {
         permanent: false,
       },
     ]
+  },
+  // Ensure public assets are served correctly
+  images: {
+    domains: ['ecoutertranscribe.tech'],
   },
 }
 

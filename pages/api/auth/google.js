@@ -9,9 +9,12 @@ export default async function handler(req, res) {
       'https://www.googleapis.com/auth/userinfo.profile'
     ].join(' ');
 
+    // Use environment variable with fallback to production domain
+    const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'https://ecoutertranscribe.tech/api/auth/callback/google';
+    
     const params = new URLSearchParams({
       client_id: process.env.GOOGLE_CLIENT_ID,
-      redirect_uri: process.env.GOOGLE_REDIRECT_URI,
+      redirect_uri: redirectUri,
       scope: scopes,
       response_type: 'code',
       access_type: 'offline',

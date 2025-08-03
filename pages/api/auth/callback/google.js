@@ -14,6 +14,8 @@ export default async function handler(req, res) {
     }
 
     // Exchange code for token
+    const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'https://ecoutertranscribe.tech/api/auth/callback/google';
+    
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: {
@@ -24,7 +26,7 @@ export default async function handler(req, res) {
         client_secret: process.env.GOOGLE_CLIENT_SECRET,
         code,
         grant_type: 'authorization_code',
-        redirect_uri: process.env.GOOGLE_REDIRECT_URI,
+        redirect_uri: redirectUri,
       }),
     });
 
