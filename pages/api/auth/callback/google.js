@@ -17,9 +17,10 @@ export default async function handler(req, res) {
     const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'https://ecoutertranscribe.tech/api/auth/callback/google';
     
     // Debug logging
-    console.log('Google Callback Debug:');
+    console.log('Google Callback Debug - Starting OAuth flow');
     console.log('GOOGLE_REDIRECT_URI env var:', process.env.GOOGLE_REDIRECT_URI);
     console.log('Final redirectUri:', redirectUri);
+    console.log('Received code:', code ? 'present' : 'missing');
     
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
@@ -36,12 +37,15 @@ export default async function handler(req, res) {
     });
 
     const tokenData = await tokenResponse.json();
+    console.log('Token exchange response:', tokenData);
 
     if (!tokenData.access_token) {
+      console.error('Failed to get access token. Response:', tokenData);
       return res.status(400).json({ error: 'Failed to get access token' });
     }
 
     // Get user info from Google
+    console.log('Fetching user info from Google...');
     const userResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
       headers: {
         Authorization: `Bearer ${tokenData.access_token}`,
@@ -49,8 +53,10 @@ export default async function handler(req, res) {
     });
 
     const googleUser = await userResponse.json();
+    console.log('Google user info:', JSON.stringify(googleUser, null, 2));
 
     if (!googleUser.email) {
+      console.error('No email in Google user info:', googleUser);
       return res.status(400).json({ error: 'Failed to get user information' });
     }
 
