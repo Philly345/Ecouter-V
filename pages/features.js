@@ -194,22 +194,8 @@ export default function Features() {
               </div>
             ))}
           </div>
-
-          {/* CTA Section */}
-          <div className="text-center space-y-6 py-12">
-            <h2 className="text-3xl font-bold">Ready to Get Started?</h2>
-            <p className="text-gray-300 max-w-2xl mx-auto">
-              Experience the power of AI-driven transcription with all these features and more. Start your free trial
-              today and see the difference quality makes.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/contact" className="px-6 py-3 bg-white text-black hover:bg-gray-200 transition-colors rounded-lg font-semibold inline-block">
-                Contact Us
-              </Link>
-            </div>
-          </div>
         </div>
       </div>
     </>
   );
-}
+    }
