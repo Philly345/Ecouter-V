@@ -14,16 +14,8 @@ const nextConfig = {
     maxFileSize: '500mb',
     siteUrl: process.env.NEXT_PUBLIC_SITE_URL || 'https://ecoutertranscribe.tech',
   },
-  // Configure redirects
-  async redirects() {
-    return [
-      {
-        source: '/',
-        destination: '/home',
-        permanent: false,
-      },
-    ]
-  },
+  // THE REDIRECTS FUNCTION HAS BEEN REMOVED FROM HERE
+  
   // Ensure public assets are served correctly
   images: {
     domains: ['ecoutertranscribe.tech'],
