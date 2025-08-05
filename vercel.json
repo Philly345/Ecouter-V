@@ -1,9 +1,0 @@
-{
-  "redirects": [
-    {
-      "source": "https://www.ecoutertranscribe.tech/:path*",
-      "destination": "https://ecoutertranscribe.tech/:path*",
-      "permanent": true
-    }
-  ]
-}
