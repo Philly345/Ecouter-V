@@ -39,23 +39,70 @@ export default function Dashboard() {
   }, [user, router, authChecked]);
 
   const fetchDashboardData = async () => {
+    console.log('🚀 Dashboard Frontend: Starting fetchDashboardData...');
     try {
       const token = localStorage.getItem('token');
+      console.log('🔑 Dashboard Frontend: Token exists:', !!token);
+      
+      // Add timeout to prevent infinite loading
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
+      console.log('📡 Dashboard Frontend: Making API request to /api/dashboard');
       const response = await fetch('/api/dashboard', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
+        signal: controller.signal
       });
+      
+      clearTimeout(timeoutId);
+      console.log('📡 Dashboard Frontend: API response status:', response.status);
 
       if (response.ok) {
         const data = await response.json();
+        console.log('📈 Dashboard Frontend: Received data from API:', data);
+        console.log('📊 Dashboard Frontend: Stats object:', data.stats);
+        console.log('📊 Dashboard Frontend: Setting dashboard data...');
         setDashboardData(data);
+        console.log('✅ Dashboard Frontend: Dashboard data set successfully');
       } else {
-        console.error('Failed to fetch dashboard data');
+        console.error('❌ Dashboard Frontend: Failed to fetch dashboard data:', response.status);
+        const errorText = await response.text();
+        console.error('❌ Dashboard Frontend: Error response:', errorText);
+        // Set empty data to prevent infinite loading
+        setDashboardData({
+          stats: {
+            totalTranscriptions: 0,
+            completedTranscriptions: 0,
+            processingTranscriptions: 0,
+            errorTranscriptions: 0,
+            storageUsed: 0,
+            storageLimit: 1024 * 1024 * 1024,
+            totalMinutes: 0
+          },
+          recentFiles: [],
+          recentActivity: []
+        });
       }
     } catch (error) {
-      console.error('Dashboard fetch error:', error);
+      console.error('❌ Dashboard Frontend: Dashboard fetch error:', error);
+      // Set empty data to prevent infinite loading
+      setDashboardData({
+        stats: {
+          totalTranscriptions: 0,
+          completedTranscriptions: 0,
+          processingTranscriptions: 0,
+          errorTranscriptions: 0,
+          storageUsed: 0,
+          storageLimit: 1024 * 1024 * 1024,
+          totalMinutes: 0
+        },
+        recentFiles: [],
+        recentActivity: []
+      });
     } finally {
+      console.log('🏁 Dashboard Frontend: Setting loading to false');
       setLoading(false);
     }
   };
@@ -100,6 +147,14 @@ export default function Dashboard() {
   const stats = dashboardData?.stats || {};
   const recentFiles = dashboardData?.recentFiles || [];
   const recentActivity = dashboardData?.recentActivity || [];
+  
+  console.log('🎯 Dashboard Frontend: Rendering with data:', {
+    loading,
+    dashboardData: !!dashboardData,
+    stats,
+    recentFilesCount: recentFiles.length,
+    recentActivityCount: recentActivity.length
+  });
 
   return (
     <>

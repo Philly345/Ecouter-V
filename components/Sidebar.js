@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { 
@@ -20,9 +20,24 @@ import T from './T';
 
 const Sidebar = ({ user, currentPage = 'dashboard', onLogout, onSidebarToggle }) => {
   const router = useRouter();
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true); // Default to collapsed on mobile
   // Changed from isSidebarHidden to isSidebarCollapsed for clarity
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  
+  // Check if device is mobile and set initial sidebar state
+  useEffect(() => {
+    const checkMobile = () => {
+      const isMobile = window.innerWidth < 1024; // lg breakpoint
+      setIsCollapsed(isMobile); // Collapse sidebar on mobile by default
+    };
+    
+    // Check on mount
+    checkMobile();
+    
+    // Check on resize
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
   
   // Notify parent component when sidebar state changes
   const toggleSidebar = (collapsed) => {
@@ -173,13 +188,16 @@ const Sidebar = ({ user, currentPage = 'dashboard', onLogout, onSidebarToggle })
         </div>
       </div>
 
-      {/* Mobile Menu Button */}
-      <button
-        onClick={() => setIsCollapsed(false)}
-        className="fixed top-16 left-4 z-40 lg:hidden glow-button p-2 rounded-lg"
-      >
-        <FiMenu className="w-4 h-4" />
-      </button>
+      {/* Mobile Menu Button - Shows when sidebar is collapsed */}
+      {isCollapsed && (
+        <button
+          onClick={() => setIsCollapsed(false)}
+          className="fixed top-6 right-4 z-40 lg:hidden bg-white/10 backdrop-blur-sm hover:bg-white/20 border border-white/20 p-2.5 rounded-full transition-all duration-300 shadow-lg"
+          title="Open Menu"
+        >
+          <FiMenu className="w-4 h-4 text-white" />
+        </button>
+      )}
     </>
   );
 };

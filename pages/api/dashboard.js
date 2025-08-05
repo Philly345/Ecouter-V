@@ -26,55 +26,115 @@ export default async function handler(req, res) {
     // Get dashboard statistics using the user's string ID for file lookups
     const userId = user.id || user._id.toString();
     
-    // Get all files for this user from MongoDB
-    const allFiles = await db.collection('files').find({ userId }).toArray();
-    const recentFiles = allFiles
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-      .slice(0, 5);
-    
-    const processingFiles = allFiles.filter(file => file.status === 'processing');
-    const completedFiles = allFiles.filter(file => file.status === 'completed');
-    const errorFiles = allFiles.filter(file => file.status === 'error');
-    
-    // Calculate storage used
-    const storageUsed = allFiles.reduce((total, file) => total + (file.size || 0), 0);
-    const storageLimit = 1024 * 1024 * 1024; // 1GB in bytes
-    
-    // Calculate total minutes transcribed
-    const totalMinutes = completedFiles.reduce((total, file) => {
-      return total + (file.duration ? Math.ceil(file.duration / 60) : 0);
-    }, 0);
+    try {
+      console.log('🔍 Dashboard API: Starting data fetch for userId:', userId);
+      
+      // Use aggregation pipeline for better performance
+      const [statsResult, recentFiles] = await Promise.all([
+        // Get aggregated stats in one query
+        db.collection('files').aggregate([
+          { $match: { userId } },
+          {
+            $group: {
+              _id: null,
+              totalFiles: { $sum: 1 },
+              totalSize: { $sum: { $ifNull: ['$size', 0] } },
+              totalDuration: { $sum: { $ifNull: ['$duration', 0] } },
+              processingCount: {
+                $sum: { $cond: [{ $eq: ['$status', 'processing'] }, 1, 0] }
+              },
+              completedCount: {
+                $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] }
+              },
+              errorCount: {
+                $sum: { $cond: [{ $eq: ['$status', 'error'] }, 1, 0] }
+              }
+            }
+          }
+        ]).toArray(),
+        
+        // Get recent files in separate optimized query
+        db.collection('files')
+          .find({ userId })
+          .sort({ createdAt: -1 })
+          .limit(5)
+          .toArray()
+      ]);
+      
+      const stats = statsResult[0] || {
+        totalFiles: 0,
+        totalSize: 0,
+        totalDuration: 0,
+        processingCount: 0,
+        completedCount: 0,
+        errorCount: 0
+      };
+      
+      console.log('📊 Dashboard API: Raw stats from DB:', stats);
+      console.log('📁 Dashboard API: Recent files count:', recentFiles.length);
+      
+      const storageUsed = stats.totalSize;
+      const storageLimit = 1024 * 1024 * 1024; // 1GB in bytes
+      const totalMinutes = Math.ceil(stats.totalDuration / 60);
 
-    const stats = {
-      totalTranscriptions: allFiles.length,
-      completedTranscriptions: completedFiles.length,
-      processingTranscriptions: processingFiles.length,
-      errorTranscriptions: errorFiles.length,
-      totalMinutes,
-      storageUsed,
-      storageLimit,
-      storagePercentage: Math.round((storageUsed / storageLimit) * 100),
-    };
+      const dashboardStats = {
+        totalTranscriptions: stats.totalFiles,
+        completedTranscriptions: stats.completedCount,
+        processingTranscriptions: stats.processingCount,
+        errorTranscriptions: stats.errorCount,
+        totalMinutes,
+        storageUsed,
+        storageLimit,
+        storagePercentage: Math.round((storageUsed / storageLimit) * 100),
+      };
+      
+      console.log('🎆 Dashboard API: Final stats being returned:', dashboardStats);
 
-    res.status(200).json({
-      success: true,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        avatar: user.avatar,
-      },
-      stats,
-      recentFiles,
-      recentActivity: recentFiles.map(file => ({
-        id: file.id,
-        name: file.name,
-        status: file.status,
-        createdAt: file.createdAt,
+      // Create recent activity from recent files
+      const recentActivity = recentFiles.slice(0, 3).map(file => ({
+        id: file._id,
         type: getActivityType(file.status),
-      })),
-    });
-    
+        description: `${file.status === 'completed' ? 'Completed' : file.status === 'processing' ? 'Processing' : 'Error in'} transcription of ${file.filename}`,
+        timestamp: file.createdAt || file.updatedAt
+      }));
+
+      res.status(200).json({
+        success: true,
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          avatar: user.avatar,
+        },
+        stats: dashboardStats,
+        recentFiles,
+        recentActivity
+      });
+    } catch (dbError) {
+      console.error('Database error in dashboard:', dbError);
+      // Return empty data instead of error to prevent infinite loading
+      res.status(200).json({
+        success: true,
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          avatar: user.avatar,
+        },
+        stats: {
+          totalTranscriptions: 0,
+          completedTranscriptions: 0,
+          processingTranscriptions: 0,
+          errorTranscriptions: 0,
+          totalMinutes: 0,
+          storageUsed: 0,
+          storageLimit: 1024 * 1024 * 1024,
+          storagePercentage: 0
+        },
+        recentFiles: [],
+        recentActivity: []
+      });
+    }
   } catch (error) {
     console.error('Dashboard API error:', error);
     res.status(500).json({ error: 'Internal server error' });

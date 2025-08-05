@@ -546,14 +546,16 @@ export default function TranscriptView() {
       </Head>
 
       <div className="min-h-screen bg-black text-white flex">
-        <Sidebar 
-          currentPage="files" 
-          user={user} 
-          onLogout={logout} 
-          onSidebarToggle={(collapsed) => setSidebarCollapsed(collapsed)}
-        />
+        <div className="hidden lg:block">
+          <Sidebar 
+            currentPage="files" 
+            user={user} 
+            onLogout={logout} 
+            onSidebarToggle={(collapsed) => setSidebarCollapsed(collapsed)}
+          />
+        </div>
         
-        <div className={`flex-1 overflow-auto transition-all duration-300 ${sidebarCollapsed ? 'ml-16' : 'lg:ml-64'}`}>
+        <div className={`flex-1 overflow-auto transition-all duration-300 ${sidebarCollapsed ? 'ml-0 lg:ml-16' : 'ml-0 lg:ml-64'}`}>
           {loading ? (
             <div className="flex justify-center items-center h-screen">
               <div className="spinner w-8 h-8"></div>
@@ -568,277 +570,273 @@ export default function TranscriptView() {
             </div>
           ) : file ? (
             <>
-              {/* Header */}
-              <div className="border-b border-white/10 py-3 px-6 flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <button 
-                    onClick={() => router.back()} 
-                    className="text-white/60 hover:text-white transition-colors text-xs"
-                  >
-                    ← Back
-                  </button>
-                  <h1 className="text-sm font-medium ml-4">{file.name || 'TranscriptionStaff (11).mp3'}</h1>
-                  <div className="text-white/60 text-xs ml-4">
-                    Generated on {formatDate(file.createdAt || new Date()).split(',')[0]}
+               {/* Header */}
+                <div className="border-b border-white/10 py-3 px-4 md:py-4 md:px-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-0">
+                  <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-4">
+                    <div className="flex items-center gap-3">
+                      <button 
+                        onClick={() => router.back()} 
+                        className="text-white/60 hover:text-white transition-colors text-sm font-medium"
+                      >
+                        ← Back
+                      </button>
+                      <h1 className="text-sm md:text-base font-medium truncate max-w-[60vw] md:max-w-none">{file.name || 'TranscriptionStaff (11).mp3'}</h1>
+                    </div>
+                    <div className="text-white/60 text-xs md:text-sm">
+                      Generated on {formatDate(file.createdAt || new Date()).split(',')[0]}
+                    </div>
+                  </div>
+                 <div className="flex flex-col sm:flex-row gap-2 md:items-center md:gap-3">
+                   <select 
+                     className="bg-black border border-white/20 rounded-lg px-3 py-2 text-sm min-w-0 flex-shrink-0"
+                     defaultValue="en"
+                   >
+                     <option value="en">English</option>
+                     <option value="es">Spanish</option>
+                     <option value="fr">French</option>
+                     <option value="de">German</option>
+                   </select>
+                   <div className="relative export-dropdown">
+                     <button 
+                       onClick={() => setExportDropdownOpen(!exportDropdownOpen)}
+                       className="w-full sm:w-auto py-2 px-4 border border-white/20 rounded-lg bg-black flex items-center justify-center text-sm font-medium hover:bg-white/5 transition-colors"
+                       disabled={exporting}
+                     >
+                       <FiDownload className="w-4 h-4 mr-2" />
+                       <span>{exporting ? 'Exporting...' : 'Export'}</span>
+                     </button>
+                     {exportDropdownOpen && (
+                       <div className="absolute right-0 mt-1 w-48 bg-black border border-white/20 rounded-lg shadow-lg z-50">
+                         <div className="py-1">
+                           <button
+                             onClick={downloadAsText}
+                             className="w-full text-left px-4 py-2 text-xs hover:bg-white/10 flex items-center"
+                           >
+                             <FiFileText className="w-3 h-3 mr-2" />
+                             Export as TXT
+                           </button>
+                           <button
+                             onClick={() => exportTranscript('pdf')}
+                             className="w-full text-left px-4 py-2 text-xs hover:bg-white/10 flex items-center"
+                           >
+                             <FiFileText className="w-3 h-3 mr-2" />
+                             Export as PDF
+                           </button>
+                           <button
+                             onClick={() => exportTranscript('docx')}
+                             className="w-full text-left px-4 py-2 text-xs hover:bg-white/10 flex items-center"
+                           >
+                             <FiFileText className="w-3 h-3 mr-2" />
+                             Export as DOCX
+                           </button>
+                           <hr className="border-white/10 my-1" />
+                           <button
+                             onClick={() => exportTranscript('notion')}
+                             className="w-full text-left px-4 py-2 text-xs hover:bg-white/10 flex items-center"
+                           >
+                             <FiExternalLink className="w-3 h-3 mr-2" />
+                             Export to Notion
+                           </button>
+                         </div>
+                       </div>
+                     )}
+                   </div>
+                 </div>
+               </div>
+                            {/* Stats */}
+               <div className="grid grid-cols-2 gap-3 px-4 py-4 md:grid-cols-4 md:gap-4 md:px-6 md:py-4 border-b border-white/10">
+                  <div className="bg-black rounded-lg p-4 border border-white/10">
+                    <div className="text-white/60 mb-2 text-xs font-medium">Duration</div>
+                    <div className="flex items-center">
+                      <FiClock className="w-4 h-4 mr-2 text-white/60" />
+                      <span className="text-sm font-medium">{formatDuration(file.duration)}</span>
+                    </div>
+                  </div>
+                  <div className="bg-black rounded-lg p-4 border border-white/10">
+                    <div className="text-white/60 mb-2 text-xs font-medium">Speakers</div>
+                    <div className="flex items-center">
+                      <FiUser className="w-4 h-4 mr-2 text-white/60" />
+                      <span className="text-sm font-medium">{calculateSpeakerCount(file)}</span>
+                    </div>
+                  </div>
+                  <div className="bg-black rounded-lg p-4 border border-white/10">
+                    <div className="text-white/60 mb-2 text-xs font-medium">Words</div>
+                    <div className="flex items-center">
+                      <FiFileText className="w-4 h-4 mr-2 text-white/60" />
+                      <span className="text-sm font-medium">{calculateWordCount(file.transcript)}</span>
+                    </div>
+                  </div>
+                  <div className="bg-black rounded-lg p-4 border border-white/10">
+                    <div className="text-white/60 mb-2 text-xs font-medium">Confidence</div>
+                    <div className="flex items-center">
+                      <span className="text-sm font-medium">{calculateConfidence(file)}</span>
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-center">
-                  <select 
-                    className="bg-black border border-white/20 rounded-lg px-3 py-1 text-xs mr-2"
-                    defaultValue="en"
-                  >
-                    <option value="en">English</option>
-                    <option value="es">Spanish</option>
-                    <option value="fr">French</option>
-                    <option value="de">German</option>
-                  </select>
-                  <div className="relative export-dropdown">
-                    <button 
-                      onClick={() => setExportDropdownOpen(!exportDropdownOpen)}
-                      className="py-1 px-3 border border-white/20 rounded-lg bg-black flex items-center text-xs"
-                      disabled={exporting}
-                    >
-                      <FiDownload className="w-3 h-3 mr-1" />
-                      <span>{exporting ? 'Exporting...' : 'Export'}</span>
-                    </button>
-                    
-                    {exportDropdownOpen && (
-                      <div className="absolute right-0 mt-1 w-48 bg-black border border-white/20 rounded-lg shadow-lg z-50">
-                        <div className="py-1">
-                          <button
-                            onClick={downloadAsText}
-                            className="w-full text-left px-4 py-2 text-xs hover:bg-white/10 flex items-center"
-                          >
-                            <FiFileText className="w-3 h-3 mr-2" />
-                            Export as TXT
-                          </button>
-                          <button
-                            onClick={() => exportTranscript('pdf')}
-                            className="w-full text-left px-4 py-2 text-xs hover:bg-white/10 flex items-center"
-                          >
-                            <FiFileText className="w-3 h-3 mr-2" />
-                            Export as PDF
-                          </button>
-                          <button
-                            onClick={() => exportTranscript('docx')}
-                            className="w-full text-left px-4 py-2 text-xs hover:bg-white/10 flex items-center"
-                          >
-                            <FiFileText className="w-3 h-3 mr-2" />
-                            Export as DOCX
-                          </button>
-                          <hr className="border-white/10 my-1" />
-                          <button
-                            onClick={() => exportTranscript('notion')}
-                            className="w-full text-left px-4 py-2 text-xs hover:bg-white/10 flex items-center"
-                          >
-                            <FiExternalLink className="w-3 h-3 mr-2" />
-                            Export to Notion
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-              
-              {/* Stats */}
-              <div className="grid grid-cols-4 gap-4 px-6 py-4 border-b border-white/10">
-                <div className="bg-black rounded-lg p-4 border border-white/10">
-                  <div className="text-white/60 mb-1 text-xs">Duration</div>
-                  <div className="flex items-center">
-                    <FiClock className="w-3 h-3 mr-1 text-white/60" />
-                    <span className="text-sm">{formatDuration(file.duration)}</span>
-                  </div>
-                </div>
-                <div className="bg-black rounded-lg p-4 border border-white/10">
-                  <div className="text-white/60 mb-1 text-xs">Speakers</div>
-                  <div className="flex items-center">
-                    <FiUser className="w-3 h-3 mr-1 text-white/60" />
-                    <span className="text-sm">{calculateSpeakerCount(file)}</span>
-                  </div>
-                </div>
-                <div className="bg-black rounded-lg p-4 border border-white/10">
-                  <div className="text-white/60 mb-1 text-xs">Words</div>
-                  <div className="flex items-center">
-                    <FiFileText className="w-3 h-3 mr-1 text-white/60" />
-                    <span className="text-sm">{calculateWordCount(file.transcript)}</span>
-                  </div>
-                </div>
-                <div className="bg-black rounded-lg p-4 border border-white/10">
-                  <div className="text-white/60 mb-1 text-xs">Confidence</div>
-                  <div className="flex items-center">
-                    <span className="text-sm">{calculateConfidence(file)}</span>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Tab Navigation */}
-              <div className="border-b border-white/10 px-6 bg-black">
-                <div className="flex">
-                  <button
-                    className={`py-4 px-4 ${activeTab === 'full-transcript' ? 'bg-black text-white' : 'text-white/60 hover:text-white'} transition-colors`}
-                    onClick={() => setActiveTab('full-transcript')}
-                  >
-                    Full Transcript
-                  </button>
-                  <button
-                    className={`py-4 px-4 ${activeTab === 'ai-summary' ? 'bg-black text-white' : 'text-white/60 hover:text-white'} transition-colors`}
-                    onClick={() => setActiveTab('ai-summary')}
-                  >
-                    AI Summary
-                  </button>
-                  <button
-                    className={`py-4 px-4 ${activeTab === 'timestamps' ? 'bg-black text-white' : 'text-white/60 hover:text-white'} transition-colors`}
-                    onClick={() => setActiveTab('timestamps')}
-                  >
-                    Timestamps
-                  </button>
-                  <button
-                    className={`py-4 px-4 ${activeTab === 'file-details' ? 'bg-black text-white' : 'text-white/60 hover:text-white'} transition-colors`}
-                    onClick={() => setActiveTab('file-details')}
-                  >
-                    File Details
-                  </button>
 
-                  <button
-                    className={`py-4 px-4 ${activeTab === 'chat-ai' ? 'bg-black text-white' : 'text-white/60 hover:text-white'} transition-colors`}
-                    onClick={() => setActiveTab('chat-ai')}
-                  >
-                    <FiMessageSquare className="w-4 h-4 inline mr-2" />
-                    Chat with AI
-                  </button>
+                {/* Tab Navigation */}
+                <div className="border-b border-white/10 px-4 md:px-6 bg-black">
+                  <div className="flex overflow-x-auto scrollbar-hide gap-2 pb-1">
+                    <button
+                      className={`px-4 py-3 text-sm font-medium rounded-t-lg whitespace-nowrap transition-colors ${activeTab === 'full-transcript' ? 'bg-white text-black' : 'bg-black text-white/70 hover:bg-white/10'}`}
+                      onClick={() => setActiveTab('full-transcript')}
+                    >
+                      Full Transcript
+                    </button>
+                    <button
+                      className={`px-4 py-3 text-sm font-medium rounded-t-lg whitespace-nowrap transition-colors ${activeTab === 'ai-summary' ? 'bg-white text-black' : 'bg-black text-white/70 hover:bg-white/10'}`}
+                      onClick={() => setActiveTab('ai-summary')}
+                    >
+                      AI Summary
+                    </button>
+                    <button
+                      className={`px-4 py-3 text-sm font-medium rounded-t-lg whitespace-nowrap transition-colors ${activeTab === 'timestamps' ? 'bg-white text-black' : 'bg-black text-white/70 hover:bg-white/10'}`}
+                      onClick={() => setActiveTab('timestamps')}
+                    >
+                      Timestamps
+                    </button>
+                    <button
+                      className={`px-4 py-3 text-sm font-medium rounded-t-lg whitespace-nowrap transition-colors ${activeTab === 'file-details' ? 'bg-white text-black' : 'bg-black text-white/70 hover:bg-white/10'}`}
+                      onClick={() => setActiveTab('file-details')}
+                    >
+                      File Details
+                    </button>
+                    <button
+                      className={`px-4 py-3 text-sm font-medium rounded-t-lg whitespace-nowrap flex items-center transition-colors ${activeTab === 'chat-ai' ? 'bg-white text-black' : 'bg-black text-white/70 hover:bg-white/10'}`}
+                      onClick={() => setActiveTab('chat-ai')}
+                    >
+                      <FiMessageSquare className="w-4 h-4 mr-2" />
+                      Chat with AI
+                    </button>
+                  </div>
                 </div>
-              </div>
               
               {/* Content Area */}
-              <div className="p-6">
-                {/* Transcript Tab */}
-                {activeTab === 'full-transcript' && (
-                  <div className="max-w-5xl mx-auto">
-                    <div className="flex justify-between items-center mb-6">
-                      <div className="relative flex-grow mr-4">
-                        <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/60" />
-                        <input
-                          type="text"
-                          placeholder="Search transcript..."
-                          className="w-full bg-black border border-white/10 rounded-lg pl-10 pr-4 py-2 text-xs"
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                        />
-                      </div>
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => router.push(`/files/edit/${id}`)}
-                          className="py-1 px-3 bg-black border border-white/20 rounded flex items-center text-xs hover:bg-white/10 transition-colors"
-                        >
-                          <FiEdit className="w-3 h-3 mr-1" />
-                          <span>Edit</span>
-                        </button>
-                        <button
-                          onClick={copyToClipboard}
-                          className="py-1 px-3 bg-black border border-white/20 rounded flex items-center text-xs"
-                        >
-                          <FiCopy className="w-3 h-3 mr-1" />
-                          <span>Copy</span>
-                        </button>
-                        
-                        <div className="relative">
-                          <button
-                            onClick={() => setShowTranslateDropdown(!showTranslateDropdown)}
-                            disabled={isTranslating}
-                            className="py-1 px-3 bg-black border border-white/20 rounded flex items-center text-xs disabled:opacity-50"
-                          >
-                            <FiGlobe className="w-3 h-3 mr-1" />
-                            <span>{isTranslating ? 'Translating...' : 'Translate'}</span>
-                          </button>
-                          
-                          {showTranslateDropdown && (
-                            <div className="absolute right-0 mt-1 w-64 bg-black border border-white/20 rounded-lg shadow-lg z-10">
-                              <div className="p-3">
-                                <div className="text-xs text-white/60 mb-3">Translate to:</div>
+              <div className="p-4 md:p-6">
+                 {/* Transcript Tab */}
+                 {activeTab === 'full-transcript' && (
+                   <div className="max-w-full mx-auto">
+                      <div className="flex flex-col gap-4 mb-6">
+                        <div className="relative w-full">
+                          <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/60" />
+                          <input
+                            type="text"
+                            placeholder="Search transcript..."
+                            className="w-full bg-black border border-white/10 rounded-lg pl-10 pr-4 py-3 text-sm"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                          />
+                        </div>
+                       <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto sm:ml-auto">
+                         <button
+                           onClick={copyToClipboard}
+                           className="py-3 px-4 sm:px-6 bg-white text-black border border-white/20 rounded-lg flex items-center text-sm font-medium hover:bg-white/90 transition-colors justify-center sm:min-w-[120px]"
+                         >
+                           <FiCopy className="w-4 h-4 mr-2" />
+                           <span>Copy</span>
+                         </button>
+                         <button
+                           onClick={() => router.push(`/files/edit/${id}`)}
+                           className="py-3 px-4 sm:px-6 bg-black border border-white/20 rounded-lg flex items-center text-sm font-medium hover:bg-white/10 transition-colors justify-center sm:min-w-[120px]"
+                         >
+                           <FiEdit className="w-4 h-4 mr-2" />
+                           <span>Edit</span>
+                         </button>
+                         <div className="relative">
+                           <button
+                             onClick={() => setShowTranslateDropdown(!showTranslateDropdown)}
+                             disabled={isTranslating}
+                             className="w-full py-3 px-4 sm:px-6 bg-black border border-white/20 rounded-lg flex items-center text-sm font-medium disabled:opacity-50 hover:bg-white/10 transition-colors justify-center sm:min-w-[120px]"
+                           >
+                             <FiGlobe className="w-4 h-4 mr-2" />
+                             <span>{isTranslating ? 'Translating...' : 'Translate'}</span>
+                           </button>
+                           {showTranslateDropdown && (
+                             <div className="absolute right-0 mt-1 w-64 bg-black border border-white/20 rounded-lg shadow-lg z-10">
+                               <div className="p-3">
+                                 <div className="text-xs text-white/60 mb-3">Translate to:</div>
                                 
                                 {/* Popular Languages Section */}
                                 <div className="mb-3">
                                   <div className="text-xs text-white/40 mb-2">Popular Languages</div>
                                   <div className="grid grid-cols-2 gap-1">
-                                    {SUPPORTED_LANGUAGES.slice(0, 12).map((lang) => (
-                                      <button
-                                        key={lang.code}
-                                        onClick={() => translateTranscript(lang.code)}
-                                        className="text-left px-2 py-1 text-xs hover:bg-white/10 rounded truncate"
-                                        title={lang.name}
-                                      >
-                                        {lang.name}
-                                      </button>
-                                    ))}
-                                  </div>
+  {SUPPORTED_LANGUAGES.slice(0, 12).map((lang) => (
+    <button
+      key={lang.code}
+      onClick={() => translateTranscript(lang.code)}
+      className="text-left px-2 py-1 text-xs hover:bg-white/10 rounded truncate"
+      title={lang.name}
+    >
+      {lang.name}
+    </button>
+  ))}
+</div>
+</div>
+
+<hr className="border-white/10 my-2" />
+
+{/* All Languages Section */}
+<div>
+  <div className="text-xs text-white/40 mb-2">All Languages ({SUPPORTED_LANGUAGES.length})</div>
+  <div className="max-h-48 overflow-y-auto">
+    {SUPPORTED_LANGUAGES.map((lang) => (
+      <button
+        key={lang.code}
+        onClick={() => translateTranscript(lang.code)}
+        className="w-full text-left px-2 py-1 text-xs hover:bg-white/10 rounded flex justify-between items-center"
+      >
+        <span>{lang.name}</span>
+        {lang.needsTranslation && (
+          <span className="text-xs text-white/40">via EN</span>
+        )}
+      </button>
+    ))}
+  </div>
+</div>
+
+{translatedTranscript && (
+  <div>
+    <hr className="border-white/10 my-2" />
+    <button
+      onClick={resetTranslation}
+      className="w-full text-left px-2 py-1 text-xs hover:bg-white/10 rounded text-white/60"
+    >
+      Show Original
+    </button>
+  </div>
+)}
                                 </div>
-                                
-                                <hr className="border-white/10 my-2" />
-                                
-                                {/* All Languages Section */}
-                                <div>
-                                  <div className="text-xs text-white/40 mb-2">All Languages ({SUPPORTED_LANGUAGES.length})</div>
-                                  <div className="max-h-48 overflow-y-auto">
-                                    {SUPPORTED_LANGUAGES.map((lang) => (
-                                      <button
-                                        key={lang.code}
-                                        onClick={() => translateTranscript(lang.code)}
-                                        className="w-full text-left px-2 py-1 text-xs hover:bg-white/10 rounded flex justify-between items-center"
-                                      >
-                                        <span>{lang.name}</span>
-                                        {lang.needsTranslation && (
-                                          <span className="text-xs text-white/40">via EN</span>
-                                        )}
-                                      </button>
-                                    ))}
-                                  </div>
-                                </div>
-                                
-                                {translatedTranscript && (
-                                  <>
-                                    <hr className="border-white/10 my-2" />
-                                    <button
-                                      onClick={resetTranslation}
-                                      className="w-full text-left px-2 py-1 text-xs hover:bg-white/10 rounded text-white/60"
-                                    >
-                                      Show Original
-                                    </button>
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="bg-black border border-white/10 rounded-xl p-6 overflow-y-auto">
-                      <div className="transcript text-sm">
-                        {file.transcript ? (
-                          <div className="whitespace-pre-wrap">
-                            <div 
-                              dangerouslySetInnerHTML={{
-                                __html: highlightSearchText(translatedTranscript || file.transcript, searchQuery)
-                              }}
-                            />
-                            {translatedTranscript && (
-                              <div className="mt-4 pt-4 border-t border-white/10">
-                                <div className="text-xs text-white/60 mb-2">Translated content shown above. Original transcript:</div>
-                                <div 
-                                  className="text-xs text-white/40 whitespace-pre-wrap"
-                                  dangerouslySetInnerHTML={{
-                                    __html: highlightSearchText(file.transcript.substring(0, 200) + '...', searchQuery)
-                                  }}
-                                />
                               </div>
                             )}
                           </div>
-                        ) : (
-                          <p className="text-white/60">No transcript available</p>
-                        )}
+                        </div>
                       </div>
-                    </div>
+                  <div className="bg-black border border-white/10 rounded-xl p-4 md:p-6 overflow-y-auto mt-4 max-h-[60vh]">
+                       <div className="transcript text-sm md:text-base leading-relaxed">
+                         {file.transcript ? (
+                           <div className="whitespace-pre-wrap">
+                             <div 
+                               dangerouslySetInnerHTML={{
+                                 __html: highlightSearchText(translatedTranscript || file.transcript, searchQuery)
+                               }}
+                             />
+                             {translatedTranscript && (
+                               <div className="mt-6 pt-4 border-t border-white/10">
+                                 <div className="text-sm text-white/60 mb-3 font-medium">Translated content shown above. Original transcript:</div>
+                                 <div 
+                                   className="text-sm text-white/40 whitespace-pre-wrap"
+                                   dangerouslySetInnerHTML={{
+                                     __html: highlightSearchText(file.transcript.substring(0, 200) + '...', searchQuery)
+                                   }}
+                                 />
+                               </div>
+                             )}
+                           </div>
+                         ) : (
+                           <p className="text-white/60 text-center py-8">No transcript available</p>
+                         )}
+                       </div>
+                     </div>
                   </div>
                 )}
                 

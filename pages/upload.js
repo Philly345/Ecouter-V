@@ -326,12 +326,13 @@ export default function Upload() {
 
       <div className="min-h-screen flex bg-black text-white">
         <Sidebar 
-          activePage="upload" 
+          currentPage="upload" 
           user={user}
+          onLogout={logout}
           onSidebarToggle={(collapsed) => setSidebarCollapsed(collapsed)}
         />
         
-        <div className={`flex-1 px-4 py-8 overflow-auto transition-all duration-300 ${sidebarCollapsed ? 'ml-16' : 'lg:ml-64'}`}>
+        <div className={`flex-1 px-4 py-8 overflow-auto transition-all duration-300 ${sidebarCollapsed ? 'ml-0 lg:ml-16' : 'ml-0 lg:ml-64'}`}>
           <div className="max-w-5xl mx-auto">
             <div className="flex items-center justify-between mb-8">
               <h1 className="text-2xl font-bold">
