@@ -325,8 +325,8 @@ export default function Terms() {
                 <div className="space-y-2 text-gray-300">
                   <p><strong>Email:</strong> legal@ecouter.ai</p>
                   <p><strong>Support:</strong> support@ecouter.ai</p>
-                  <p><strong>Address:</strong> 123 Legal Lane, Terms City, TC 12345</p>
-                  <p><strong>Phone:</strong> +1 (555) 123-4567</p>
+                  <p><strong>Address:</strong> 223 Legal Lane, Terms City, TC 2890</p>
+                  <p><strong>Phone:</strong> +1 (559) 784-7957</p>
                 </div>
                 
                 <p className="text-gray-400 mt-8 text-sm">
