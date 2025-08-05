@@ -1,43 +1,11 @@
+# Allow all crawlers to access the site
 User-agent: *
 Allow: /
+
+# Disallow indexing of private or API directories
 Disallow: /api/
 Disallow: /admin/
 Disallow: /account/
-Disallow: /*?*
 
-# Static Assets (Allow JS, CSS, images, etc.)
-Allow: /*.css$
-Allow: /*.js$
-Allow: /*.png$
-Allow: /*.jpg$
-Allow: /*.jpeg$
-Allow: /*.gif$
-Allow: /*.svg$
-Allow: /*.webp$
-
-# Sitemap location
+# Point to the correct sitemap
 Sitemap: https://ecoutertranscribe.tech/sitemap.xml
-
-# Googlebot (inherits from above but can have overrides if needed)
-User-agent: Googlebot
-Disallow: /_next/
-Disallow: /debug-upload
-Disallow: /test-upload
-Allow: /
-
-# Bingbot (same as Googlebot)
-User-agent: Bingbot
-Disallow: /_next/
-Disallow: /debug-upload
-Disallow: /test-upload
-Allow: /
-
-# Important Public Pages (for clarity only – already allowed above)
-Allow: /features
-Allow: /pricing
-Allow: /contact
-Allow: /help
-Allow: /privacy
-Allow: /terms
-Allow: /signup
-Allow: /login
