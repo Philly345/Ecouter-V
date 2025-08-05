@@ -3,17 +3,17 @@ import Head from 'next/head';
 // A helper function to get the current date in YYYY-MM-DD format
 const getCurrentDate = () => {
   const today = new Date();
-  return today.toISOString().split('T')[0]; // Returns "2025-08-05"
+  return today.toISOString().split('T')[0];
 };
 
 export default function SEO({
   title = "Ecouter: Free AI Transcription with Speaker ID & Summaries",
   description = "Get free, unlimited AI transcription with Ecouter. Our advanced software provides speaker identification, sentiment analysis, and intelligent summaries from any audio or video file. Start transcribing in minutes!",
-  url = "https://www.ecoutertranscribe.tech",
-  image = "https://www.ecoutertranscribe.tech/og-image.png",
+  url = "https://ecoutertranscribe.tech",
+  image = "https://ecoutertranscribe.tech/og-image.png",
   type = "website",
   breadcrumbs = [ // Default breadcrumbs for the homepage
-    { position: 1, name: "Home", item: "https://www.ecoutertranscribe.tech" }
+    { position: 1, name: "Home", item: "https://ecoutertranscribe.tech" }
   ]
 }) {
 
@@ -121,8 +121,6 @@ export default function SEO({
   const breadcrumbStructuredData = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
-    // IMPORTANT: This should be dynamic. Pass a `breadcrumbs` array as a prop 
-    // to this component from each page to reflect its actual path.
     "itemListElement": breadcrumbs.map((crumb, index) => ({
       "@type": "ListItem",
       "position": index + 1,
@@ -140,9 +138,7 @@ export default function SEO({
       <meta name="robots" content="index, follow" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <meta name="language" content="English" />
-      {/* REMOVED: <meta name="keywords" ... /> - Obsolete */}
-      {/* REMOVED: <meta name="revisit-after" ... /> - Obsolete */}
-      
+      
       {/* --- Site Verifications --- */}
       <meta name="google-site-verification" content="arJeK33PX-LVBVLpe0EQsHH32qJSN6yevIsZhzAx1DQ" />
       <meta name="msvalidate.01" content="53E3017973ACFF5BAE8B0B6FF125DFD8" />
@@ -167,15 +163,14 @@ export default function SEO({
 
       {/* --- Canonical & Links --- */}
       <link rel="canonical" href={url} />
-      <link rel="manifest" href="/manifest.json" /> {/* ADDED for PWA */}
+      <link rel="manifest" href="/manifest.json" />
 
       {/* --- Icons (Cleaned Up) --- */}
       <link rel="icon" href="/favicon.ico" sizes="any" />
       <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
       <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
       <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
-      {/* REMOVED redundant favicon links */}
-      
+      
       {/* --- PWA Theme --- */}
       <meta name="theme-color" content="#000000" />
       <meta name="msapplication-TileColor" content="#000000" />
@@ -189,8 +184,7 @@ export default function SEO({
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqStructuredData) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteStructuredData) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbStructuredData) }} />
-      {/* REMOVED separate Organization script, it's now merged above */}
-
+      
       {/* --- Analytics --- */}
       <script async src="https://www.googletagmanager.com/gtag/js?id=G-Q0FM9G43P3"></script>
       <script dangerouslySetInnerHTML={{
