@@ -56,7 +56,10 @@ const Navbar = ({ user, onLogout }) => {
               height={32} 
               className="w-8 h-8 object-contain"
             />
-            <span className="text-sm sm:text-lg md:text-xl font-medium gradient-text" style={{fontSize: '12px'}}>Ecouter</span>
+            <div className="flex flex-col">
+              <span className="text-sm sm:text-lg md:text-xl font-medium gradient-text" style={{fontSize: '12px'}}>Ecouter</span>
+              <span className="text-xs" style={{color: '#ff6b35'}}>Free</span>
+            </div>
           </Link>
 
           {/* Navigation Links - Hidden on Mobile */}
