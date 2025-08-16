@@ -8,6 +8,7 @@ const isServerless = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME 
 const USERS_COLLECTION = 'users';
 
 // Users database
+// Force rebuild - 2025-08-16
 export const usersDB = {
   // Get all users (for admin purposes, use with caution)
   getAll: async () => {
