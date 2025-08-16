@@ -2,6 +2,7 @@ import { usersDB } from '../../../../utils/database.js';
 import { generateToken, setTokenCookie } from '../../../../utils/auth.js';
 
 export default async function handler(req, res) {
+  console.log('--- Google Callback Handler Reached ---');
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -95,7 +96,7 @@ export default async function handler(req, res) {
 
     // Redirect to a special page that will set localStorage and then redirect to dashboard
     const userData = JSON.stringify({
-      id: user.id,
+      id: user._id.toString(),
       name: user.name,
       email: user.email,
       avatar: user.avatar || null
