@@ -12,7 +12,8 @@ import {
   languageNeedsTranslation, 
   translateText, 
   getLanguageForAI,
-  getAvailableFeatures 
+  getAvailableFeatures,
+  getLanguageCodeFromAssemblyCode
 } from '../../utils/languages.js';
 
 export const config = {
@@ -328,17 +329,13 @@ async function processTranscription(fileId, fileUrl, settings) {
       { $set: { status: 'processing', updatedAt: new Date() } }
     );
 
-    const assemblyLanguageCode = getAssemblyLanguageCode(settings.language);
+    // Language is now auto-detected, but we can use the user's hint for feature availability
     const availableFeatures = getAvailableFeatures(settings.language);
 
     const requestBody = {
       audio_url: fileUrl, // URL is already properly encoded
+      language_detection: true, // Enable automatic language detection
     };
-    
-    // Only add language_code if it's not null/undefined
-    if (assemblyLanguageCode && assemblyLanguageCode !== 'en') {
-      requestBody.language_code = assemblyLanguageCode;
-    }
 
     // Validate and clean the URL
     try {
@@ -426,42 +423,13 @@ async function processTranscription(fileId, fileUrl, settings) {
     console.log('✅ Proceeding with transcription request');
     console.log('====================================');
 
-    // Try a simpler request format first
-    const simpleRequestBody = {
-      audio_url: fileUrl,
-    };
-
-    console.log('🔍 Testing with simple request body:', JSON.stringify(simpleRequestBody, null, 2));
-
-    // Test API key with a simple GET request first
-    try {
-      console.log('🔍 Testing API key with GET request...');
-      const testResponse = await fetch('https://api.assemblyai.com/v2/transcript', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${process.env.ASSEMBLYAI_API_KEY}`,
-        },
-      });
-      
-      console.log('🔍 GET test response status:', testResponse.status);
-      if (testResponse.ok) {
-        const testData = await testResponse.json();
-        console.log('✅ API key is working - GET request successful');
-        console.log('🔍 Available transcriptions:', testData.transcripts?.length || 0);
-      } else {
-        console.error('❌ API key test failed:', testResponse.status, testResponse.statusText);
-      }
-    } catch (testError) {
-      console.error('❌ API key test error:', testError.message);
-    }
-
     const assemblyResponse = await fetch('https://api.assemblyai.com/v2/transcript', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${process.env.ASSEMBLYAI_API_KEY}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(simpleRequestBody),
+      body: JSON.stringify(requestBody),
     });
 
     const transcriptData = await assemblyResponse.json();
@@ -472,7 +440,7 @@ async function processTranscription(fileId, fileUrl, settings) {
         status: assemblyResponse.status,
         statusText: assemblyResponse.statusText,
         response: transcriptData,
-        requestBody: simpleRequestBody,
+        requestBody: requestBody,
         headers: {
           'Authorization': `Bearer ${process.env.ASSEMBLYAI_API_KEY.substring(0, 8)}...`,
           'Content-Type': 'application/json'
@@ -528,6 +496,14 @@ async function pollTranscriptionStatus(fileId, transcriptId, settings) {
         let speakers = [];
         let timestamps = [];
 
+        // Get the detected language, map it to our internal code
+        const detectedAssemblyCode = data.language_code || 'en'; // Default to 'en' if not provided
+        const detectedLanguage = getLanguageCodeFromAssemblyCode(detectedAssemblyCode);
+        console.log(`🤖 Language detected: ${detectedAssemblyCode}, mapped to: ${detectedLanguage}`);
+
+        // Use the detected language for all subsequent processing
+        const currentLanguage = detectedLanguage;
+
         if (settings.speakerIdentification && data.utterances && data.utterances.length > 0) {
           speakers = extractSpeakers(data.utterances);
           
@@ -562,10 +538,10 @@ async function pollTranscriptionStatus(fileId, transcriptId, settings) {
         }
 
         // Apply translation if the target language needs translation
-        if (languageNeedsTranslation(settings.language)) {
-          console.log(`🌐 Translating transcript from English to ${settings.language}...`);
+        if (languageNeedsTranslation(currentLanguage)) {
+          console.log(`🌐 Translating transcript from English to ${currentLanguage}...`);
           try {
-            transcriptText = await translateText(transcriptText, settings.language, 'en');
+            transcriptText = await translateText(transcriptText, currentLanguage, 'en');
             console.log('✅ Translation completed successfully');
             
             // Also translate speaker labels if present
@@ -576,7 +552,7 @@ async function pollTranscriptionStatus(fileId, transcriptId, settings) {
               
               const translatedUtterances = [];
               for (const utterance of data.utterances) {
-                const translatedText = await translateText(utterance.text, settings.language, 'en');
+                const translatedText = await translateText(utterance.text, currentLanguage, 'en');
                 
                 // Map speaker letter to number
                 if (!speakerMap.has(utterance.speaker)) {
@@ -605,7 +581,7 @@ async function pollTranscriptionStatus(fileId, transcriptId, settings) {
           }
         }
 
-        const summaryResult = await generateSummary(transcriptText, settings.language);
+        const summaryResult = await generateSummary(transcriptText, currentLanguage);
 
         await db.collection('files').updateOne(
           { _id: new ObjectId(fileId) },
@@ -621,7 +597,7 @@ async function pollTranscriptionStatus(fileId, transcriptId, settings) {
               timestamps,
               duration: data.audio_duration,
               wordCount: data.words?.length || 0,
-              language: settings.language,
+              language: currentLanguage, // Save the detected language
               updatedAt: new Date(),
             }
           }

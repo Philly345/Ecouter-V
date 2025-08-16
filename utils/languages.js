@@ -451,3 +451,16 @@ export function getLanguageForAI(languageCode) {
   
   return languageNames[languageCode] || 'English';
 }
+
+// Get our language code from AssemblyAI language code
+export function getLanguageCodeFromAssemblyCode(assemblyCode) {
+    // AssemblyAI might return a regional code like 'en_us', so we take the base 'en'
+    const baseCode = assemblyCode.split('_')[0];
+    const language = SUPPORTED_LANGUAGES.find(lang => lang.assemblyCode === baseCode);
+    if (language) {
+        return language.code;
+    }
+    // If we can't find a direct match for the assembly code, try matching the base code itself
+    const fallbackLanguage = SUPPORTED_LANGUAGES.find(lang => lang.code === baseCode);
+    return fallbackLanguage?.code || 'en'; // Default to 'en' if no match is found
+}
