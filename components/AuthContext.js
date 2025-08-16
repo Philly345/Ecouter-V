@@ -135,7 +135,7 @@ export const AuthProvider = ({ children }) => {
         localStorage.removeItem('token');
       }
       setUser(null);
-      router.push('/home');
+      router.push('/login');
     }
   };
 

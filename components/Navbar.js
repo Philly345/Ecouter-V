@@ -35,7 +35,7 @@ const Navbar = ({ user, onLogout }) => {
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
       if (onLogout) onLogout();
-      router.push('/home');
+      router.push('/login');
     } catch (error) {
       console.error('Logout error:', error);
     }
