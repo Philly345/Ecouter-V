@@ -90,34 +90,16 @@ export const usersDB = {
     
     try {
       const { db } = await connectDB();
-      const result = await db.collection(USERS_COLLECTION).updateOne(
+      await db.collection(USERS_COLLECTION).updateOne(
         { _id: id },
         { $set: { ...updateData, updatedAt: new Date() } }
       );
-      return result;
+      // After updating, fetch and return the updated user document
+      return await db.collection(USERS_COLLECTION).findOne({ _id: id });
     } catch (error) {
       console.error('Error updating user:', error);
       return null;
     }
-  },
-
-  update: (id, updateData) => {
-    if (!filesystemAvailable) {
-      console.warn('File system not available, cannot update user');
-      return null;
-    }
-    const users = usersDB.getAll();
-    const index = users.findIndex(user => user.id === id);
-    if (index !== -1) {
-      users[index] = {
-        ...users[index],
-        ...updateData,
-        updatedAt: new Date().toISOString(),
-      };
-      usersDB.save(users);
-      return users[index];
-    }
-    return null;
   },
 };
 

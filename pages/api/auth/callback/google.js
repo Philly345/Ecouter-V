@@ -95,7 +95,7 @@ export default async function handler(req, res) {
 
     // Redirect to a special page that will set localStorage and then redirect to dashboard
     const userData = JSON.stringify({
-      id: user.id,
+      id: user._id.toString(),
       name: user.name,
       email: user.email,
       avatar: user.avatar || null

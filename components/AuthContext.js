@@ -19,6 +19,19 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     checkAuth();
+
+    const handleStorageChange = (event) => {
+      if (event.key === 'token') {
+        console.log('Token changed, re-checking auth...');
+        checkAuth();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
 
   const checkAuth = async () => {
