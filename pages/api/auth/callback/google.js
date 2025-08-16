@@ -2,6 +2,7 @@ import { usersDB } from '../../../../utils/database.js';
 import { generateToken, setTokenCookie } from '../../../../utils/auth.js';
 
 export default async function handler(req, res) {
+  console.log('--- Google Callback Handler Reached ---');
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
