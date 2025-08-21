@@ -1,4 +1,4 @@
-🎧 Ecouter Transcribe: Effortless AI-Powered Transcription
+Ecouter Transcribe: Effortless AI-Powered Transcription
 Ecouter Transcribe is a production-ready web application that transforms your audio and video files into accurate, insightful transcripts with the power of AI. Designed for a seamless user experience, it's your go-to solution for converting spoken content into valuable text.
 ✨ Features
  * Stunning User Interface: A modern homepage welcomes you with captivating animated black and white bubbles, setting the stage for a sophisticated experience.
