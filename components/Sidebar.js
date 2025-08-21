@@ -198,9 +198,8 @@ const Sidebar = ({ user, currentPage = 'dashboard', onLogout, onSidebarToggle })
             {/* Dropdown Items */}
             {otherFeaturesOpen && !isCollapsed && !isSidebarCollapsed && (
               <div className="ml-6 space-y-1">
-                <Link
-                  href="/pdf-dialogue"
-                  className={`flex items-center justify-between px-3 py-2 rounded-lg transition-all duration-200 hover:bg-white/5 ${
+                <div
+                  className={`flex items-center justify-between px-3 py-2 rounded-lg transition-all duration-200 cursor-not-allowed opacity-60 ${
                     currentPage === 'pdf-dialogue' ? 'bg-white/10' : ''
                   }`}
                 >
@@ -210,10 +209,10 @@ const Sidebar = ({ user, currentPage = 'dashboard', onLogout, onSidebarToggle })
                       <T>PDF to Dialogue</T>
                     </span>
                   </div>
-                  <span className="text-[9px] px-1.5 py-0.5 bg-white text-black rounded-full font-medium">
-                    New
+                  <span className="text-[9px] px-1.5 py-0.5 bg-orange-500 text-white rounded-full font-medium">
+                    Beta
                   </span>
-                </Link>
+                </div>
                 
                 <Link
                   href="/live-transcription"
