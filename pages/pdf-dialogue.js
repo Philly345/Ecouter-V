@@ -417,33 +417,9 @@ export default function PDFDialogue() {
                                 <span className="text-white/70">Man ({result.maleSegments || 0} parts)</span>
                               </div>
                             </div>
-                            <div className="text-right">
-                              <div className="text-white/50 text-xs">
-                                {result.totalSegments || result.audioUrls.length} segments
-                              </div>
-                              {result.estimatedDuration && (
-                                <div className="text-white/40 text-xs">
-                                  ~{result.estimatedDuration} min
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                          {result.totalWords && (
-                            <div className="mt-2 text-xs text-white/40">
-                              {result.totalWords} words total
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      
-                      {/* Duration info for monologue */}
-                      {!result.isDialogue && result.estimatedDuration && (
-                        <div className="mb-4 p-3 bg-white/5 rounded-lg border border-white/10">
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="text-white/70">Estimated duration: ~{result.estimatedDuration} minutes</span>
-                            {result.totalWords && (
-                              <span className="text-white/50 text-xs">{result.totalWords} words</span>
-                            )}
+                            <span className="text-white/50 text-xs">
+                              {result.totalSegments || result.audioUrls.length} audio segments
+                            </span>
                           </div>
                         </div>
                       )}

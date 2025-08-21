@@ -5,6 +5,7 @@ import Navbar from '../components/Navbar';
 import FloatingBubbles from '../components/FloatingBubbles';
 import Modal from '../components/Modal';
 import T from '../components/T';
+import SEO from '../components/SEO';
 import { 
   FiMic, 
   FiUpload, 
@@ -94,12 +95,12 @@ export default function Home({ user, onLogout }) {
 
   return (
     <>
-      <Head>
-        <title>Ecouter Transcribe - AI-Powered Transcription Service</title>
-        <meta name="description" content="Transform your audio and video into accurate transcripts with our AI-powered transcription service. Fast, secure, and reliable." />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <link rel="icon" href="/favicon.ico" />
-      </Head>
+      <SEO 
+        title="Ecouter: Free AI Transcription with Speaker ID & Summaries | 120+ Languages"
+        description="Get free, unlimited AI transcription with Ecouter. Our advanced software provides speaker identification, sentiment analysis, and intelligent summaries from any audio or video file. Supports 120+ languages worldwide. Start transcribing in minutes!"
+        keywords="free AI transcription, speech to text, audio transcription, video transcription, speaker identification, meeting transcription, subtitle generation, voice recognition, multilingual transcription, international transcription"
+        url="https://ecoutertranscribe.tech"
+      />
 
       <div className="min-h-screen bg-black text-white relative overflow-hidden">
         <FloatingBubbles />

@@ -1,11 +1,47 @@
-# Allow all crawlers to access the site
+# Ecouter Transcribe - Optimized Robots.txt for International SEO
 User-agent: *
 Allow: /
 
-# Disallow indexing of private or API directories
+# Block sensitive/private areas
 Disallow: /api/
 Disallow: /admin/
 Disallow: /account/
+Disallow: /uploads/
+Disallow: /_next/
+Disallow: /debug/
+Disallow: /test/
+Disallow: /temp/
+Disallow: /functions/
 
-# Point to the correct sitemap
+# Allow critical API endpoints for SEO
+Allow: /api/sitemap
+Allow: /api/robots
+
+# Block duplicate pages to prevent crawl budget waste
+Disallow: /*?*utm_*
+Disallow: /*?*session*
+Disallow: /*?*sid*
+
+# Optimize crawl rate (1 second delay prevents server overload)
+Crawl-delay: 1
+
+# Main dynamic sitemap (includes international pages)
 Sitemap: https://ecoutertranscribe.tech/sitemap.xml
+
+# Additional performance optimization
+# Cache-control friendly crawling
+User-agent: Googlebot
+Crawl-delay: 0
+
+User-agent: Bingbot
+Crawl-delay: 1
+
+# Social media bots (for better social sharing)
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: Twitterbot
+Allow: /
+
+User-agent: LinkedInBot
+Allow: /
