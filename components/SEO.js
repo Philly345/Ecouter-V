@@ -349,14 +349,21 @@ export default function SEO({
       {Object.keys(supportedLocales)
         .filter(lang => lang !== locale)
         .map(lang => {
-          const normalizedAltLocale = 
-            lang === 'zh-tw' ? 'zh_TW' : 
-            lang === 'zh' ? 'zh_CN' : lang;
+          // Handle special cases for clean locale formatting
+          let ogLocaleAlternate;
+          if (lang === 'zh-tw') {
+            ogLocaleAlternate = 'zh_TW';
+          } else if (lang === 'zh') {
+            ogLocaleAlternate = 'zh_CN';
+          } else {
+            ogLocaleAlternate = `${lang}_${supportedLocales[lang].region}`;
+          }
+          
           return (
             <meta 
               key={lang}
               property="og:locale:alternate" 
-              content={`${normalizedAltLocale}_${supportedLocales[lang].region}`} 
+              content={ogLocaleAlternate} 
             />
           );
         })}

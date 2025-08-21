@@ -96,10 +96,10 @@ export default function Home({ user, onLogout }) {
   return (
     <>
       <SEO 
-        title="Ecouter: Free AI Transcription with Speaker ID & Summaries | 120+ Languages"
-        description="Get free, unlimited AI transcription with Ecouter. Our advanced software provides speaker identification, sentiment analysis, and intelligent summaries from any audio or video file. Supports 120+ languages worldwide. Start transcribing in minutes!"
-        keywords="free AI transcription, speech to text, audio transcription, video transcription, speaker identification, meeting transcription, subtitle generation, voice recognition, multilingual transcription, international transcription"
+        title="Ecouter: Free AI Transcription & Speaker ID"
+        description="Free unlimited AI transcription with speaker identification, sentiment analysis & summaries. 120+ languages, 98% accuracy. Perfect for meetings, interviews & Zoom calls."
         url="https://ecoutertranscribe.tech"
+        faqData={faqs.map(faq => ({ question: faq.question, answer: faq.answer }))}
       />
 
       <div className="min-h-screen bg-black text-white relative overflow-hidden">
