@@ -19,7 +19,7 @@ export default function Pricing() {
         { text: '2 hours of transcription per month', included: true },
         { text: 'Basic AI transcription', included: true },
         { text: 'Standard accuracy', included: true },
-        { text: 'Email support', included: true },
+        { text: 'Community forum', included: true },
         { text: 'Speaker identification', included: false },
         { text: 'AI chat capabilities', included: false },
         { text: 'Priority processing', included: false },

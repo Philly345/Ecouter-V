@@ -116,10 +116,10 @@ export default function Contact() {
                     <FiMail className="h-5 w-5" />
                   </div>
                   <div>
-                    <h3 className="font-semibold mb-1">Email Support</h3>
-                    <p className="text-gray-400 text-sm mb-2">Get help with your account or technical issues</p>
+                    <h3 className="font-semibold mb-1">Email Contact</h3>
+                    <p className="text-gray-400 text-sm mb-2">Reach out for general inquiries</p>
                     <span className="text-gray-500">
-                      support@ecouter.com
+                      contact@ecouter.com
                     </span>
                   </div>
                 </div>
