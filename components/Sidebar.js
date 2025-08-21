@@ -14,7 +14,11 @@ import {
   FiLogOut,
   FiChevronLeft,
   FiSettings,
-  FiMessageSquare
+  FiMessageSquare,
+  FiChevronDown,
+  FiChevronRight,
+  FiFileText,
+  FiMoreHorizontal
 } from 'react-icons/fi';
 import T from './T';
 
@@ -23,6 +27,7 @@ const Sidebar = ({ user, currentPage = 'dashboard', onLogout, onSidebarToggle })
   const [isCollapsed, setIsCollapsed] = useState(true); // Default to collapsed on mobile
   // Changed from isSidebarHidden to isSidebarCollapsed for clarity
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [otherFeaturesOpen, setOtherFeaturesOpen] = useState(false);
   
   // Check if device is mobile and set initial sidebar state
   useEffect(() => {
@@ -38,6 +43,13 @@ const Sidebar = ({ user, currentPage = 'dashboard', onLogout, onSidebarToggle })
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  // Auto-expand Other Features dropdown when on feature pages
+  useEffect(() => {
+    if (currentPage === 'pdf-dialogue' || currentPage === 'live-transcription' || currentPage === 'live-transcription-sessions') {
+      setOtherFeaturesOpen(true);
+    }
+  }, [currentPage]);
   
   // Notify parent component when sidebar state changes
   const toggleSidebar = (collapsed) => {
@@ -155,6 +167,87 @@ const Sidebar = ({ user, currentPage = 'dashboard', onLogout, onSidebarToggle })
               </Link>
             );
           })}
+
+          {/* Other Features Dropdown */}
+          <div className="mt-2">
+            <button
+              onClick={() => setOtherFeaturesOpen(!otherFeaturesOpen)}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg mb-1 transition-all duration-200 hover:bg-white/5 ${
+                currentPage === 'pdf-dialogue' || currentPage === 'live-transcription' || currentPage === 'live-transcription-sessions' ? 'bg-white/10' : ''
+              }`}
+            >
+              <div className="flex items-center space-x-3">
+                <FiMoreHorizontal className="w-4 h-4 text-white/70" />
+                {!isCollapsed && !isSidebarCollapsed && (
+                  <span className="text-sm text-white/80">
+                    <T>Other Features</T>
+                  </span>
+                )}
+              </div>
+              {!isCollapsed && !isSidebarCollapsed && (
+                <div className="text-white/50">
+                  {otherFeaturesOpen ? (
+                    <FiChevronDown className="w-3 h-3" />
+                  ) : (
+                    <FiChevronRight className="w-3 h-3" />
+                  )}
+                </div>
+              )}
+            </button>
+
+            {/* Dropdown Items */}
+            {otherFeaturesOpen && !isCollapsed && !isSidebarCollapsed && (
+              <div className="ml-6 space-y-1">
+                <Link
+                  href="/pdf-dialogue"
+                  className={`flex items-center justify-between px-3 py-2 rounded-lg transition-all duration-200 hover:bg-white/5 ${
+                    currentPage === 'pdf-dialogue' ? 'bg-white/10' : ''
+                  }`}
+                >
+                  <div className="flex items-center space-x-3">
+                    <FiFileText className="w-4 h-4 text-white/70" />
+                    <span className="text-sm text-white/80">
+                      <T>PDF to Dialogue</T>
+                    </span>
+                  </div>
+                  <span className="text-[9px] px-1.5 py-0.5 bg-white text-black rounded-full font-medium">
+                    New
+                  </span>
+                </Link>
+                
+                <Link
+                  href="/live-transcription"
+                  className={`flex items-center justify-between px-3 py-2 rounded-lg transition-all duration-200 hover:bg-white/5 ${
+                    currentPage === 'live-transcription' ? 'bg-white/10' : ''
+                  }`}
+                >
+                  <div className="flex items-center space-x-3">
+                    <FiMic className="w-4 h-4 text-white/70" />
+                    <span className="text-sm text-white/80">
+                      <T>Live Transcription</T>
+                    </span>
+                  </div>
+                  <span className="text-[9px] px-1.5 py-0.5 bg-white text-black rounded-full font-medium">
+                    Live
+                  </span>
+                </Link>
+                
+                <Link
+                  href="/live-transcription/sessions"
+                  className={`flex items-center px-3 py-2 rounded-lg transition-all duration-200 hover:bg-white/5 ml-6 ${
+                    currentPage === 'live-transcription-sessions' ? 'bg-white/10' : ''
+                  }`}
+                >
+                  <div className="flex items-center space-x-3">
+                    <FiClock className="w-3 h-3 text-white/60" />
+                    <span className="text-xs text-white/70">
+                      <T>Saved Sessions</T>
+                    </span>
+                  </div>
+                </Link>
+              </div>
+            )}
+          </div>
         </nav>
 
         {/* Bottom Section */}

@@ -2,43 +2,197 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Normal website design */
-html {
-  height: 100%;
-  font-size: 1rem; /* Standard base font size for relative calculations */
-}
-
-body {
-  width: 100%;
-  overflow-x: hidden;
-  min-height: 100vh;
-}
-
-@media (min-width: 768px) {
-  html {
-    font-size: 15px; /* Base font size slightly larger for tablets */
-  }
-}
-
-@media (min-width: 1024px) {
-  html {
-    font-size: 16px; /* Base font size for desktop */
-  }
-}
-
+/* Performance optimizations */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
+html {
+  height: 100%;
+  font-size: 1rem;
+  scroll-behavior: smooth;
+}
+
 body {
+  width: 100%;
+  overflow-x: hidden;
+  min-height: 100vh;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: #000000;
   color: #ffffff;
-  overflow-x: hidden;
+  text-rendering: optimizeSpeed;
+  -webkit-font-feature-settings: "kern" 1;
+  font-feature-settings: "kern" 1;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Critical loading styles */
+.loading-skeleton {
+  background: linear-gradient(90deg, #1f2937 25%, #374151 50%, #1f2937 75%);
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Performance-optimized animations */
+.fade-in {
+  animation: fadeIn 0.3s ease-out forwards;
+  opacity: 0;
+}
+
+@keyframes fadeIn {
+  to { opacity: 1; }
+}
+
+.slide-up {
+  animation: slideUp 0.4s ease-out forwards;
+  transform: translateY(20px);
+  opacity: 0;
+}
+
+@keyframes slideUp {
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* GPU-accelerated transitions */
+.gpu-accelerated {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Optimized scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Essential form styles */
+.form-input {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+  transition: border-color 0.2s ease;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Essential button styles */
+.btn-primary {
+  background: linear-gradient(45deg, #333, #666);
+  border: 1px solid #555;
+  color: white;
+  transition: all 0.2s ease;
+}
+
+.btn-primary:hover {
+  background: linear-gradient(45deg, #555, #888);
+  transform: translateY(-1px);
+}
+
+/* Loading spinner */
+.spinner {
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-left-color: #ff6b35;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* COMPREHENSIVE FOCUS REMOVAL */
+*,
+*:before,
+*:after {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+*:focus {
+  outline: none !important;
+  box-shadow: none !important;
+  border-color: inherit !important;
+}
+
+*:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+  border-color: inherit !important;
+}
+
+button,
+input,
+textarea,
+select,
+a,
+[role="button"],
+[tabindex] {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+button:focus,
+input:focus,
+textarea:focus,
+select:focus,
+a:focus {
+  outline: none !important;
+  box-shadow: none !important;
+  border-color: rgba(75, 85, 99, 1) !important;
+}
+
+/* Remove Tailwind focus rings */
+.focus\:ring:focus,
+.focus\:ring-1:focus,
+.focus\:ring-2:focus,
+.focus\:ring-4:focus,
+.focus\:ring-blue-500:focus,
+.ring-blue-500 {
+  --tw-ring-color: transparent !important;
+  --tw-ring-shadow: none !important;
+  box-shadow: none !important;
+}
+
+/* Performance critical responsive styles */
+@media (max-width: 768px) {
+  html {
+    font-size: 15px;
+  }
+}
+
+@media (min-width: 1024px) {
+  html {
+    font-size: 16px;
+  }
 }
 
 /* Prevent layout shifts during translation */
@@ -361,10 +515,11 @@ h1, h2, h3, h4, h5, h6, p, span {
   transition: width 0.3s ease;
 }
 
-/* Sidebar styles */
+/* Sidebar styles - No blue focus */
 .sidebar-link {
   transition: all 0.2s ease;
   border-left: 3px solid transparent;
+  outline: none !important;
 }
 
 .sidebar-link:hover {
@@ -372,9 +527,21 @@ h1, h2, h3, h4, h5, h6, p, span {
   border-left-color: rgba(255, 255, 255, 0.3);
 }
 
+.sidebar-link:focus {
+  outline: none !important;
+  box-shadow: none !important;
+  background: rgba(255, 255, 255, 0.05);
+  border-left-color: rgba(255, 255, 255, 0.3);
+}
+
 .sidebar-link.active {
   background: rgba(255, 255, 255, 0.08);
   border-left-color: #ff6b35;
+}
+
+.sidebar-link.active:focus {
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 /* Loading spinner */
@@ -407,7 +574,7 @@ h1, h2, h3, h4, h5, h6, p, span {
   }
 }
 
-/* Toggle Switch */
+/* Toggle Switch - Remove blue colors */
 .toggle {
   position: relative;
   display: inline-block;
@@ -420,11 +587,16 @@ h1, h2, h3, h4, h5, h6, p, span {
   vertical-align: middle;
   appearance: none;
   -webkit-appearance: none;
-  outline: none;
+  outline: none !important;
+}
+
+.toggle:focus {
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 .toggle:checked {
-  background-color: rgba(59, 130, 246, 0.5);
+  background-color: rgba(255, 255, 255, 0.3);
 }
 
 .toggle:before {
@@ -441,7 +613,7 @@ h1, h2, h3, h4, h5, h6, p, span {
 
 .toggle:checked:before {
   transform: translateX(20px);
-  background-color: #3b82f6;
+  background-color: white;
 }
 
 @media (max-width: 768px) {
@@ -454,7 +626,16 @@ h1, h2, h3, h4, h5, h6, p, span {
   }
 }
 
-/* Remove all blue edges and focus rings */
+/* COMPREHENSIVE FOCUS REMOVAL - Remove all blue edges and focus rings */
+
+/* Universal focus removal */
+*,
+*:before,
+*:after {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
 *:focus {
   outline: none !important;
   box-shadow: none !important;
@@ -467,32 +648,85 @@ h1, h2, h3, h4, h5, h6, p, span {
   border-color: inherit !important;
 }
 
-/* Override any Tailwind ring utilities */
-.ring-blue-500,
-.ring-blue-600,
-.ring-blue-300,
-.focus\:ring-blue-500:focus,
-.focus\:ring-blue-600:focus,
-.focus\:ring-blue-300:focus,
-.focus\:ring:focus {
-  --tw-ring-color: transparent !important;
+*:focus-within {
+  outline: none !important;
   box-shadow: none !important;
 }
 
-/* Ensure no blue borders */
+/* Remove Tailwind focus rings */
+.focus\:ring:focus,
+.focus\:ring-1:focus,
+.focus\:ring-2:focus,
+.focus\:ring-4:focus,
+.focus\:ring-8:focus,
+.focus\:ring-blue-500:focus,
+.focus\:ring-blue-600:focus,
+.focus\:ring-blue-300:focus,
+.focus\:ring-blue-400:focus,
+.focus\:ring-blue-700:focus,
+.focus\:ring-indigo-500:focus,
+.focus\:ring-sky-500:focus,
+.ring-blue-500,
+.ring-blue-600,
+.ring-blue-300,
+.ring-blue-400,
+.ring-blue-700,
+.ring-indigo-500,
+.ring-sky-500 {
+  --tw-ring-color: transparent !important;
+  --tw-ring-shadow: none !important;
+  --tw-ring-offset-shadow: none !important;
+  box-shadow: none !important;
+}
+
+/* Form elements */
+button,
+input,
+textarea,
+select,
+a,
+[role="button"],
+[tabindex] {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
 button:focus,
 input:focus,
 textarea:focus,
-select:focus {
+select:focus,
+a:focus,
+[role="button"]:focus,
+[tabindex]:focus {
   outline: none !important;
   box-shadow: none !important;
   border-color: rgba(75, 85, 99, 1) !important; /* gray-600 */
 }
 
-/* Remove any default browser focus styles */
-button,
-input,
-textarea,
-select {
-  outline: none;
+/* Specific overrides for common interactive elements */
+.focus\:outline-none:focus {
+  outline: none !important;
+}
+
+/* Remove blue focus from divs that might be clickable */
+div:focus,
+span:focus,
+[onClick]:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Override any CSS framework focus styles */
+.focus-visible\:ring-2:focus-visible,
+.focus-visible\:ring:focus-visible,
+.focus\:ring-offset-2:focus {
+  outline: none !important;
+  box-shadow: none !important;
+  --tw-ring-color: transparent !important;
+}
+
+/* Disable focus for Next.js Link components */
+a[href]:focus {
+  outline: none !important;
+  box-shadow: none !important;
 }

@@ -4,6 +4,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import { AuthProvider } from '../components/AuthContext';
 import { TranslationProvider } from '../components/TranslationContext';
 import SEO from '../components/SEO';
+import CustomerSupport from '../components/CustomerSupport';
 
 function MyApp({ Component, pageProps }) {
   return (
@@ -12,6 +13,7 @@ function MyApp({ Component, pageProps }) {
         <SEO />
         <ToastContainer position="top-right" autoClose={3000} />
         <Component {...pageProps} />
+        <CustomerSupport />
       </TranslationProvider>
     </AuthProvider>
   );

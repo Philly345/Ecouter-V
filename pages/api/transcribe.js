@@ -334,7 +334,6 @@ async function processTranscription(fileId, fileUrl, settings) {
 
     const requestBody = {
       audio_url: fileUrl, // URL is already properly encoded
-      language_detection: true, // Enable automatic language detection
     };
 
     // Validate and clean the URL
@@ -397,9 +396,7 @@ async function processTranscription(fileId, fileUrl, settings) {
     if (availableFeatures.punctuate && settings.autoPunctuation) {
       requestBody.punctuate = true;
     }
-    if (settings.includeTimestamps) {
-      requestBody.word_details = true;
-    }
+    // AssemblyAI returns word-level timestamps by default when available
     if (settings.quality === 'enhanced') {
       requestBody.speech_model = 'best';
     }

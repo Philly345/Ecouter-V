@@ -210,7 +210,13 @@ export default function Upload() {
 
     // Step 3: Confirm upload and start transcription
     console.log('✅ Confirming upload...');
-    const confirmResponse = await fetch('/api/upload/confirm', {
+    
+    // Choose confirm endpoint based on quality setting
+    const confirmEndpoint = settings.quality === 'enhanced' ? '/api/upload/confirm-gladia' : '/api/upload/confirm';
+    
+    console.log(`Using ${settings.quality} quality for transcription (large file)`);
+    
+    const confirmResponse = await fetch(confirmEndpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -240,7 +246,8 @@ export default function Upload() {
       throw new Error(`Confirmation failed: ${errorData.error} - ${errorData.details || errorText}`);
     }
 
-    console.log('🎉 Large file upload completed successfully!');
+    const confirmResult = await confirmResponse.json();
+    console.log(`🎉 Large file upload completed successfully with ${settings.quality} quality!`, confirmResult);
   };
 
   // Handle small files (<4MB) with original upload method
@@ -254,7 +261,12 @@ export default function Upload() {
     formData.append('filterProfanity', settings.filterProfanity);
     formData.append('autoPunctuation', settings.autoPunctuation);
 
-    const response = await fetch('/api/transcribe', {
+    // Choose API endpoint based on quality setting
+    const endpoint = settings.quality === 'enhanced' ? '/api/transcribe-gladia' : '/api/transcribe';
+    
+    console.log(`Using ${settings.quality} quality for transcription (small file)`);
+
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -266,6 +278,9 @@ export default function Upload() {
       const errorData = await response.json();
       throw new Error(errorData.error || 'Upload failed');
     }
+    
+    const result = await response.json();
+    console.log(`Small file upload successful with ${settings.quality} quality:`, result);
   };
 
   const removeFile = (index) => {
@@ -508,7 +523,8 @@ export default function Upload() {
                               : 'bg-white/5 border-white/10 text-white/80 hover:bg-white/10'
                           }`}
                         >
-                          Standard
+                          <div>Standard</div>
+                          <div className="text-[10px] text-white/60">Fast & Reliable</div>
                         </button>
                         <button
                           type="button"
@@ -519,7 +535,11 @@ export default function Upload() {
                               : 'bg-white/5 border-white/10 text-white/80 hover:bg-white/10'
                           }`}
                         >
-                          Enhanced
+                          <div className="flex items-center justify-between">
+                            <span>Enhanced</span>
+                            <span className="text-[9px] px-1.5 py-0.5 bg-blue-500 text-white rounded-full font-medium">Beta</span>
+                          </div>
+                          <div className="text-[10px] text-white/60">AI Auto-Correction</div>
                         </button>
                       </div>
                     </div>

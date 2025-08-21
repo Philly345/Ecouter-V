@@ -1,7 +1,10 @@
-import { verifyToken, getTokenFromRequest } from '../../utils/auth.js';
+import { verifyTokenString, getTokenFromRequest } from '../../utils/auth.js';
 import { connectDB } from '../../lib/mongodb.js';
+import { ObjectId } from 'mongodb';
 
 export default async function handler(req, res) {
+  console.log('🚀 Dashboard API: Request received');
+  
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -9,25 +12,64 @@ export default async function handler(req, res) {
   try {
     // Verify authentication
     const token = getTokenFromRequest(req);
-    const decoded = verifyToken(token);
+    console.log('🔑 Dashboard API: Token found:', !!token);
+    
+    if (!token) {
+      console.log('❌ Dashboard API: No token provided');
+      return res.status(401).json({ error: 'No token provided' });
+    }
+    
+    const decoded = verifyTokenString(token);
+    console.log('🔍 Dashboard API: Token decoded successfully:', !!decoded);
+    console.log('👤 Dashboard API: Decoded user info:', {
+      userId: decoded?.userId,
+      email: decoded?.email,
+      name: decoded?.name
+    });
     
     if (!decoded) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      console.log('❌ Dashboard API: Invalid token');
+      return res.status(401).json({ error: 'Invalid token' });
     }
 
-    // Find user in MongoDB
+    console.log('🔍 Dashboard API: Decoded token contains:', {
+      userId: decoded.userId,
+      email: decoded.email,
+      name: decoded.name
+    });
+
+    // Find user in MongoDB using the userId from token
     const { db } = await connectDB();
-    const user = await db.collection('users').findOne({ email: decoded.email });
+    console.log('📡 Dashboard API: Connected to MongoDB');
+    
+    const user = await db.collection('users').findOne({ 
+      _id: new ObjectId(decoded.userId) 
+    });
+    
+    console.log('👤 Dashboard API: User lookup result:', !!user);
+    if (user) {
+      console.log('👤 Dashboard API: Found user:', {
+        id: user._id.toString(),
+        email: user.email,
+        name: user.name
+      });
+    }
     
     if (!user) {
+      console.log('❌ Dashboard API: User not found in database');
       return res.status(401).json({ error: 'User not found' });
     }
 
-    // Get dashboard statistics using the user's string ID for file lookups
-    const userId = user.id || user._id.toString();
+    // Use the userId from the token directly - this is what's stored in files
+    const userId = decoded.userId;
+    console.log('🔍 Dashboard API: Using userId for file lookup:', userId);
     
     try {
       console.log('🔍 Dashboard API: Starting data fetch for userId:', userId);
+      
+      // First, let's check if any files exist for this userId
+      const fileCheck = await db.collection('files').countDocuments({ userId });
+      console.log(`📊 Dashboard API: Found ${fileCheck} files for userId: ${userId}`);
       
       // Use aggregation pipeline for better performance
       const [statsResult, recentFiles] = await Promise.all([
@@ -98,6 +140,7 @@ export default async function handler(req, res) {
         timestamp: file.createdAt || file.updatedAt
       }));
 
+      console.log('✅ Dashboard API: Sending successful response');
       res.status(200).json({
         success: true,
         user: {
@@ -111,7 +154,7 @@ export default async function handler(req, res) {
         recentActivity
       });
     } catch (dbError) {
-      console.error('Database error in dashboard:', dbError);
+      console.error('❌ Dashboard API: Database error:', dbError);
       // Return empty data instead of error to prevent infinite loading
       res.status(200).json({
         success: true,
@@ -136,7 +179,7 @@ export default async function handler(req, res) {
       });
     }
   } catch (error) {
-    console.error('Dashboard API error:', error);
+    console.error('❌ Dashboard API: General error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 }

@@ -6,7 +6,7 @@ export function generateToken(payload) {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
 }
 
-export function verifyToken(token) {
+export function verifyTokenString(token) {
   try {
     return jwt.verify(token, JWT_SECRET);
   } catch (error) {
@@ -14,7 +14,27 @@ export function verifyToken(token) {
   }
 }
 
+export async function verifyToken(req) {
+  try {
+    const token = getTokenFromRequest(req);
+    if (!token) {
+      return null;
+    }
+    
+    const decoded = jwt.verify(token, JWT_SECRET);
+    return decoded;
+  } catch (error) {
+    console.error('Token verification error:', error);
+    return null;
+  }
+}
+
 export function getTokenFromRequest(req) {
+  // Ensure headers exist
+  if (!req || !req.headers) {
+    return null;
+  }
+  
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     return authHeader.substring(7);

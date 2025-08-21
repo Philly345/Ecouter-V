@@ -4,9 +4,11 @@ import { useRouter } from 'next/router';
 import Image from 'next/image';
 import T from './T';
 import LanguageSelector from './LanguageSelector';
+import { useAuth } from './AuthContext';
 
 const Navbar = ({ user, onLogout }) => {
   const router = useRouter();
+  const { logout } = useAuth();
   const [isScrolled, setIsScrolled] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -33,9 +35,8 @@ const Navbar = ({ user, onLogout }) => {
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
-      if (onLogout) onLogout();
-      router.push('/login');
+      // Use the AuthContext logout function which properly clears state and redirects
+      await logout();
     } catch (error) {
       console.error('Logout error:', error);
     }

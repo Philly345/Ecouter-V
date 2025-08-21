@@ -1,4 +1,4 @@
-import { createContext, useState, useContext, useEffect } from 'react';
+import { createContext, useState, useContext, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/router';
 
 const AuthContext = createContext();
@@ -13,9 +13,58 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
   const [authChecked, setAuthChecked] = useState(false);
   const router = useRouter();
+
+  const checkAuth = useCallback(async () => {
+    try {
+      setLoading(true);
+      const storedToken = localStorage.getItem('token');
+      
+      if (!storedToken) {
+        setUser(null);
+        setToken(null);
+        setAuthChecked(true);
+        return;
+      }
+
+      // Quick token validation without API call for better performance
+      try {
+        const payload = JSON.parse(atob(storedToken.split('.')[1]));
+        const currentTime = Date.now() / 1000;
+        
+        if (payload.exp < currentTime) {
+          // Token expired
+          localStorage.removeItem('token');
+          setUser(null);
+          setToken(null);
+          setAuthChecked(true);
+          return;
+        }
+        
+        // Token is valid, set user from payload
+        setUser({ userId: payload.userId, email: payload.email });
+        setToken(storedToken);
+        setAuthChecked(true);
+        
+      } catch (tokenError) {
+        // Invalid token format
+        localStorage.removeItem('token');
+        setUser(null);
+        setToken(null);
+        setAuthChecked(true);
+      }
+    } catch (error) {
+      console.error('Auth check failed:', error);
+      setUser(null);
+      setToken(null);
+      setAuthChecked(true);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     checkAuth();
@@ -33,62 +82,6 @@ export const AuthProvider = ({ children }) => {
       window.removeEventListener('storage', handleStorageChange);
     };
   }, []);
-
-  const checkAuth = async () => {
-    console.log('🔍 Starting auth check...');
-    try {
-      // Only access localStorage on client side
-      if (typeof window === 'undefined') {
-        console.log('❌ Server side, skipping auth check');
-        setLoading(false);
-        setAuthChecked(true);
-        return;
-      }
-      
-      const token = localStorage.getItem('token');
-      console.log('📝 Token found:', !!token);
-      
-      if (!token) {
-        console.log('❌ No token, setting loading false');
-        setLoading(false);
-        setAuthChecked(true);
-        return;
-      }
-
-      console.log('🌐 Making verify request...');
-      const response = await fetch('/api/auth/verify', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      console.log('📡 Verify response status:', response.status);
-
-      if (response.ok) {
-        const data = await response.json();
-        console.log('✅ Auth check successful, user:', data.user);
-        setUser(data.user);
-      } else {
-        console.log('❌ Auth check failed, removing token');
-        const errorText = await response.text();
-        console.log('Error response:', errorText);
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('token');
-        }
-        setUser(null);
-      }
-    } catch (error) {
-      console.error('💥 Auth check failed with error:', error);
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('token');
-      }
-      setUser(null);
-    } finally {
-      console.log('🏁 Auth check complete, setting states');
-      setLoading(false);
-      setAuthChecked(true);
-    }
-  };
 
   const login = async (email, password) => {
     console.log('🔐 Starting login process...');
@@ -109,6 +102,7 @@ export const AuthProvider = ({ children }) => {
       if (typeof window !== 'undefined') {
         localStorage.setItem('token', data.token);
       }
+      setToken(data.token); // Set token in state
       setUser(data.user);
       setAuthChecked(true);
       console.log('✅ Login successful, user set:', data.user);
@@ -140,15 +134,21 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
-    } catch (error) {
-      console.error('Logout error:', error);
-    } finally {
+      // Clear token immediately to prevent any further API calls
       if (typeof window !== 'undefined') {
         localStorage.removeItem('token');
       }
+      setToken(null);
       setUser(null);
+      
+      // Redirect immediately before making the API call
       router.push('/login');
+      
+      // Then clear the server-side cookie (this can happen in background)
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Even if API call fails, we've already cleared local state and redirected
     }
   };
 
@@ -158,6 +158,7 @@ export const AuthProvider = ({ children }) => {
 
   const value = {
     user,
+    token,
     login,
     signup,
     logout,
