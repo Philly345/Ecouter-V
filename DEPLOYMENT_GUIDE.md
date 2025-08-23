@@ -29,10 +29,10 @@ SMTP_PASSWORD=BTyhDskPG5jwCZdx
 SMTP_SENDER=no-reply@ecouter.systems
 
 # API Keys (already configured)
-ASSEMBLYAI_API_KEY=c5156190d2c140dda9742eaad3f91e84
-GLADIA_API_KEY=2382fea8-0215-4ab8-88c2-5779ed5a44fd
-GEMINI_API_KEY=AIzaSyAL60bsNiihrVWW8vH3XClKRSXH3ExrWN0
-DEEPSEEK_API_KEY=sk-a70e5d818b2d4ab89fe7f05093bb2da8
+ASSEMBLYAI_API_KEY=your-assemblyai-api-key-here
+GLADIA_API_KEY=your-gladia-api-key-here
+GEMINI_API_KEY=your-gemini-api-key-here
+DEEPSEEK_API_KEY=your-deepseek-api-key-here
 ```
 
 ### Step 4: Start the System
