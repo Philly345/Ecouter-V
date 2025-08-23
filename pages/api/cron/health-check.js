@@ -1,7 +1,7 @@
-// Vercel Cron Job API endpoint with Backup Key Support
+// Vercel Cron Job API endpoint with Auto-Fixing Capabilities
 // This runs automatically at scheduled times
 
-const { BackupAPIManager } = require('../../../lib/backup-api-manager.cjs');
+const { AutoFixingAPIManager } = require('../../../lib/auto-fixing-api-manager.cjs');
 
 export default async function handler(req, res) {
   // Verify this is a cron request (Vercel adds this header)
@@ -11,54 +11,53 @@ export default async function handler(req, res) {
   }
 
   try {
-    console.log('🔍 Starting scheduled health check with backup key support...');
+    console.log('� Starting intelligent health check with auto-fixing...');
     
-    const apiManager = new BackupAPIManager();
+    const apiManager = new AutoFixingAPIManager();
     
-    // Perform enhanced health check with backup key testing
-    const healthData = await apiManager.performHealthCheck();
+    // Perform health check with auto-fixing
+    const healthData = await apiManager.performHealthCheckWithAutoFix();
     
-    console.log(`📊 Enhanced health check completed - Status: ${healthData.overallStatus}`);
+    console.log(`🎯 Auto-fix results: ${healthData.systemsFixed} fixed, ${healthData.systemsRequiringManualIntervention} need attention`);
     
-    // Count backup key statistics
-    const totalBackupKeys = Object.values(healthData.backupKeyStatus).reduce((sum, status) => sum + (status.totalKeys - 1), 0);
-    const apisWithBackups = Object.values(healthData.apis).filter(api => api.hasWorkingBackups).length;
+    // Send intelligent email report (only if there are issues or fixes)
+    let emailResult = { success: false, reason: 'No email needed - all systems healthy' };
     
-    console.log(`🔑 Backup keys: ${totalBackupKeys} total, ${apisWithBackups} APIs have working backups`);
-    
-    // Send enhanced email report with backup key information
-    const emailResult = await apiManager.sendHealthReport(healthData);
-    
-    if (emailResult.success) {
-      console.log(`📧 Enhanced email report sent successfully - ID: ${emailResult.messageId}`);
+    if (healthData.criticalIssuesRequiringAttention.length > 0 || healthData.autoFixesPerformed.length > 0) {
+      console.log('� Sending intelligent health report...');
+      emailResult = await apiManager.sendIntelligentHealthReport(healthData);
+      
+      if (emailResult.success) {
+        console.log(`✅ ${emailResult.emailType} report sent - ID: ${emailResult.messageId}`);
+      } else {
+        console.error(`❌ Email failed: ${emailResult.error}`);
+      }
     } else {
-      console.error(`❌ Email failed: ${emailResult.error}`);
+      console.log('✅ All systems healthy - no email needed');
     }
     
-    // Return enhanced success response
+    // Return enhanced response
     res.status(200).json({
       success: true,
       timestamp: new Date().toISOString(),
-      healthStatus: healthData.overallStatus,
+      overallStatus: healthData.overallStatus,
       apisChecked: Object.keys(healthData.apis).length,
-      emailSent: emailResult.success,
-      issues: healthData.issues.length,
-      // Enhanced backup key information
-      backupKeyStats: {
-        totalBackupKeys,
-        apisWithWorkingBackups: apisWithBackups,
-        backupKeyStatus: healthData.backupKeyStatus
+      autoFixResults: {
+        systemsFixed: healthData.systemsFixed,
+        systemsRequiringAttention: healthData.systemsRequiringManualIntervention,
+        fixesPerformed: healthData.autoFixesPerformed.map(fix => `${fix.api}: ${fix.fixMethod}`)
       },
-      enhancedFeatures: [
-        'Backup key testing',
-        'Automatic key switching',
-        'Multi-tier redundancy',
-        'Smart error categorization'
-      ]
+      emailSent: emailResult.success,
+      emailType: emailResult.emailType || 'none',
+      intelligentMonitoring: {
+        autoFixingEnabled: true,
+        backupKeySupport: true,
+        onlyAlertsOnIssues: true
+      }
     });
     
   } catch (error) {
-    console.error('❌ Enhanced cron job failed:', error);
+    console.error('❌ Intelligent cron job failed:', error);
     
     res.status(500).json({
       success: false,
