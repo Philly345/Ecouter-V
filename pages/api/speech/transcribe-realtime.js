@@ -1,6 +1,5 @@
 // Real-time Speech to Text API
 import jwt from 'jsonwebtoken';
-import { GoogleCloudSpeechAPI } from '../../../utils/speechToText';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {

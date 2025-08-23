@@ -1,5 +1,5 @@
 // Manual health check trigger for testing
-const { VercelAPIManager } = require('../../lib/vercel-api-manager.cjs');
+const { VercelAPIManager } = require('../../../lib/vercel-api-manager.cjs');
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
