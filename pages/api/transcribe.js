@@ -15,6 +15,8 @@ import {
   getAvailableFeatures,
   getLanguageCodeFromAssemblyCode
 } from '../../utils/languages.js';
+const { getTranscriptionService } = require('../../lib/smart-transcription.cjs');
+const { getAPIManager } = require('../../lib/api-manager.cjs');
 
 export const config = {
   api: {
@@ -243,18 +245,31 @@ export default async function handler(req, res) {
     const fileId = result.insertedId.toString();
 
     // Start transcription process (async)
-    console.log('🎯 Starting transcription process for file:', fileId);
+    console.log('🎯 Starting AI-powered transcription process for file:', fileId);
     try {
+      // Initialize AI manager and transcription service
+      const apiManager = getAPIManager();
+      const transcriptionService = getTranscriptionService();
+      
       // Fire and forget - don't await this to avoid Vercel timeout
       setImmediate(() => {
-        processTranscription(fileId, uploadResult.url, settings).catch(error => {
-          console.error('? Async transcription error:', error);
+        processTranscriptionWithAI(fileId, uploadResult.url, settings, apiManager, transcriptionService).catch(error => {
+          console.error('🤖 AI transcription error:', error);
+          // Fallback to original transcription if AI fails
+          processTranscription(fileId, uploadResult.url, settings).catch(fallbackError => {
+            console.error('❌ Fallback transcription also failed:', fallbackError);
+          });
         });
       });
-      console.log('✅ Transcription process initiated asynchronously');
+      console.log('✅ AI transcription process initiated asynchronously');
     } catch (error) {
-      console.error('❌ Error starting transcription:', error);
-      // Don't return error here as file is already saved
+      console.error('❌ Error starting AI transcription:', error);
+      // Fallback to original transcription
+      setImmediate(() => {
+        processTranscription(fileId, uploadResult.url, settings).catch(fallbackError => {
+          console.error('❌ Fallback transcription failed:', fallbackError);
+        });
+      });
     }
 
     // Clean up temp file
@@ -317,8 +332,297 @@ export default async function handler(req, res) {
       errorResponse.details = 'Invalid file format or corrupted upload';
     }
     
-    res.status(500).json(errorResponse);
   }
+}
+
+// 🤖 AI-Powered Transcription with Smart API Management
+async function processTranscriptionWithAI(fileId, fileUrl, settings, apiManager, transcriptionService) {
+  const { db } = await connectDB();
+  
+  try {
+    console.log('🤖 Starting AI-powered transcription process...');
+    
+    // Update status to processing with AI indicator
+    await db.collection('files').updateOne(
+      { _id: new ObjectId(fileId) },
+      { 
+        $set: { 
+          status: 'processing_ai', 
+          processingMethod: 'ai_managed',
+          updatedAt: new Date() 
+        } 
+      }
+    );
+
+    // Use the smart transcription service
+    const transcriptionResult = await transcriptionService.transcribeAudio(fileUrl, {
+      speakerDetection: settings.speakerIdentification,
+      languageDetection: true,
+      quality: settings.quality,
+      includeTimestamps: settings.includeTimestamps,
+      filterProfanity: settings.filterProfanity,
+      autoPunctuation: settings.autoPunctuation
+    });
+
+    console.log(`✅ AI transcription completed using ${transcriptionResult.api}`);
+
+    // Process the transcription result
+    let transcriptText = transcriptionResult.text;
+    let speakers = [];
+    let timestamps = [];
+
+    // Handle speaker identification if available
+    if (settings.speakerIdentification && transcriptionResult.speakers && transcriptionResult.speakers.length > 0) {
+      // Format speakers similar to original format
+      if (Array.isArray(transcriptionResult.speakers) && transcriptionResult.speakers[0].text) {
+        // If speakers have utterances
+        const speakerMap = new Map();
+        let speakerIndex = 0;
+        
+        const formattedUtterances = transcriptionResult.speakers.map(utterance => {
+          if (!speakerMap.has(utterance.speaker)) {
+            speakerMap.set(utterance.speaker, speakerIndex++);
+          }
+          const speakerNumber = speakerMap.get(utterance.speaker);
+          const timestamp = formatTimestamp(utterance.start || 0);
+          
+          return `Speaker ${speakerNumber}    ${timestamp}    ${utterance.text}`;
+        });
+        
+        transcriptText = formattedUtterances.join('\n') + '\n\n[END]';
+        speakers = Array.from(speakerMap.keys());
+      } else {
+        speakers = transcriptionResult.speakers;
+      }
+    }
+
+    // Handle timestamps if available
+    if (settings.includeTimestamps && transcriptionResult.timestamps) {
+      timestamps = transcriptionResult.timestamps;
+    }
+
+    // Detect language (should be available from AI result)
+    const detectedLanguage = transcriptionResult.detectedLanguage || settings.language || 'en';
+    console.log(`🌐 Language detected: ${detectedLanguage}`);
+
+    // Apply translation if needed
+    if (languageNeedsTranslation(detectedLanguage)) {
+      console.log(`🌐 Translating transcript to ${detectedLanguage}...`);
+      try {
+        const translationResult = await transcriptionService.translateText(
+          transcriptText, 
+          detectedLanguage, 
+          'en'
+        );
+        transcriptText = translationResult.translatedText;
+        console.log('✅ AI translation completed');
+      } catch (translationError) {
+        console.error('❌ AI translation failed:', translationError);
+        await apiManager.recordAPIError(await apiManager.getCurrentAPI(), translationError);
+        console.log('📝 Using original transcript');
+      }
+    }
+
+    // Generate AI summary
+    const summaryResult = await generateAISummary(transcriptText, detectedLanguage, apiManager);
+
+    // Update the database with completed transcription
+    await db.collection('files').updateOne(
+      { _id: new ObjectId(fileId) },
+      {
+        $set: {
+          status: 'completed',
+          transcript: transcriptText,
+          summary: summaryResult.summary,
+          topic: summaryResult.topic,
+          topics: summaryResult.topics,
+          insights: summaryResult.insights,
+          speakers,
+          timestamps,
+          duration: transcriptionResult.processingTime,
+          wordCount: transcriptText.split(/\s+/).length,
+          language: detectedLanguage,
+          processingMethod: 'ai_managed',
+          apiUsed: transcriptionResult.api,
+          confidence: transcriptionResult.confidence,
+          updatedAt: new Date(),
+        }
+      }
+    );
+
+    console.log('🎉 AI transcription process completed successfully!');
+    
+    // Send success notification
+    try {
+      await apiManager.sendInfoAlert(
+        'TRANSCRIPTION_SUCCESS', 
+        `File transcription completed successfully using ${transcriptionResult.api} API`
+      );
+    } catch (emailError) {
+      console.error('⚠️ Failed to send success notification:', emailError);
+    }
+
+  } catch (error) {
+    console.error('🤖 AI transcription process error:', error);
+    
+    // Update status to error
+    await db.collection('files').updateOne(
+      { _id: new ObjectId(fileId) },
+      { 
+        $set: { 
+          status: 'error', 
+          error: error.message,
+          processingMethod: 'ai_managed_failed',
+          updatedAt: new Date() 
+        } 
+      }
+    );
+
+    // Try auto-debug
+    const autoFixed = await apiManager.autoDebug(error, {
+      operation: 'ai_transcription',
+      fileId,
+      fileUrl,
+      settings
+    });
+
+    if (!autoFixed) {
+      // Send critical alert for manual intervention
+      await apiManager.sendCriticalAlert('AI_TRANSCRIPTION_FAILED', error, {
+        fileId,
+        fileUrl,
+        settings,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Re-throw the error to trigger fallback
+    throw error;
+  }
+}
+
+// AI-Enhanced Summary Generation
+async function generateAISummary(text, targetLanguage, apiManager) {
+  try {
+    console.log('🤖 Generating AI summary...');
+    
+    // Check which API to use for summary generation
+    const currentAPI = await apiManager.getCurrentAPI();
+    const estimatedTokens = Math.ceil(text.length / 4); // Rough token estimate
+    
+    // Check if current API can handle the request
+    const canProceed = await apiManager.checkAPIUsage(currentAPI, estimatedTokens);
+    if (!canProceed) {
+      console.log('🔄 API switched for summary generation');
+    }
+
+    // Use the current API for summary
+    const finalAPI = await apiManager.getCurrentAPI();
+    
+    // Generate summary based on available API
+    if (['gemini', 'deepseek'].includes(finalAPI)) {
+      return await generateSummaryWithAI(text, targetLanguage, finalAPI);
+    } else {
+      // Fallback to original summary generation
+      return await generateSummary(text, targetLanguage);
+    }
+    
+  } catch (error) {
+    console.error('🤖 AI summary generation failed:', error);
+    await apiManager.recordAPIError(await apiManager.getCurrentAPI(), error);
+    
+    // Try auto-debug
+    const autoFixed = await apiManager.autoDebug(error, {
+      operation: 'ai_summary',
+      textLength: text.length
+    });
+
+    if (autoFixed) {
+      // Retry summary generation
+      return await generateAISummary(text, targetLanguage, apiManager);
+    }
+
+    // Fallback to original summary
+    return await generateSummary(text, targetLanguage);
+  }
+}
+
+async function generateSummaryWithAI(text, targetLanguage, apiName) {
+  const maxTranscriptLength = 32000;
+  const truncatedText = text.length > maxTranscriptLength ? text.substring(0, maxTranscriptLength) : text;
+  const languageName = getLanguageForAI(targetLanguage);
+  
+  const summaryPrompt = `Analyze this transcript and respond in ${languageName}:\n\n"${truncatedText}"\n\nProvide your response in ${languageName} with:\n1. SUMMARY: A 2-3 sentence summary.\n2. TOPICS: 3-5 main topics, comma-separated.\n3. INSIGHTS: 1-2 key insights.\n\nFormat your response exactly like this:\nSUMMARY: [Your summary]\nTOPICS: [topic1, topic2]\nINSIGHTS: [Your insights]`;
+  
+  if (apiName === 'gemini') {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          contents: [{ parts: [{ text: summaryPrompt }] }],
+          generationConfig: {
+            temperature: 0.7,
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: 1024,
+          }
+        })
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Gemini API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    
+    return parseSummaryResponse(generatedText);
+    
+  } else if (apiName === 'deepseek') {
+    const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'deepseek-chat',
+        messages: [{
+          role: 'user',
+          content: summaryPrompt
+        }],
+        temperature: 0.7,
+        max_tokens: 1024
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`DeepSeek API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const generatedText = data.choices?.[0]?.message?.content || '';
+    
+    return parseSummaryResponse(generatedText);
+  }
+  
+  throw new Error(`Unsupported API for summary: ${apiName}`);
+}
+
+function parseSummaryResponse(generatedText) {
+  const summaryMatch = generatedText.match(/SUMMARY:\s*(.+?)(?=TOPICS:|$)/s);
+  const topicsMatch = generatedText.match(/TOPICS:\s*(.+?)(?=INSIGHTS:|$)/s);
+  const insightsMatch = generatedText.match(/INSIGHTS:\s*(.+?)$/s);
+  
+  return {
+    summary: summaryMatch ? summaryMatch[1].trim() : 'Summary not available.',
+    topics: topicsMatch ? topicsMatch[1].trim().split(",").map(t => t.trim()).filter(Boolean) : [],
+    topic: topicsMatch ? topicsMatch[1].trim().split(",")[0].trim() : 'General',
+    insights: insightsMatch ? insightsMatch[1].trim() : 'No insights generated.'
+  };
 }
 
 async function processTranscription(fileId, fileUrl, settings) {

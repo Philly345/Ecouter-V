@@ -18,7 +18,8 @@ import {
   FiChevronDown,
   FiChevronRight,
   FiFileText,
-  FiMoreHorizontal
+  FiMoreHorizontal,
+  FiVideo
 } from 'react-icons/fi';
 import T from './T';
 
@@ -46,7 +47,7 @@ const Sidebar = ({ user, currentPage = 'dashboard', onLogout, onSidebarToggle })
 
   // Auto-expand Other Features dropdown when on feature pages
   useEffect(() => {
-    if (currentPage === 'pdf-dialogue' || currentPage === 'live-transcription' || currentPage === 'live-transcription-sessions') {
+    if (currentPage === 'zoom-meetings' || currentPage === 'live-transcription' || currentPage === 'live-transcription-sessions') {
       setOtherFeaturesOpen(true);
     }
   }, [currentPage]);
@@ -173,7 +174,7 @@ const Sidebar = ({ user, currentPage = 'dashboard', onLogout, onSidebarToggle })
             <button
               onClick={() => setOtherFeaturesOpen(!otherFeaturesOpen)}
               className={`w-full flex items-center justify-between px-3 py-2 rounded-lg mb-1 transition-all duration-200 hover:bg-white/5 ${
-                currentPage === 'pdf-dialogue' || currentPage === 'live-transcription' || currentPage === 'live-transcription-sessions' ? 'bg-white/10' : ''
+                currentPage === 'zoom-meetings' || currentPage === 'live-transcription' || currentPage === 'live-transcription-sessions' ? 'bg-white/10' : ''
               }`}
             >
               <div className="flex items-center space-x-3">
@@ -198,21 +199,22 @@ const Sidebar = ({ user, currentPage = 'dashboard', onLogout, onSidebarToggle })
             {/* Dropdown Items */}
             {otherFeaturesOpen && !isCollapsed && !isSidebarCollapsed && (
               <div className="ml-6 space-y-1">
-                <div
-                  className={`flex items-center justify-between px-3 py-2 rounded-lg transition-all duration-200 cursor-not-allowed opacity-60 ${
-                    currentPage === 'pdf-dialogue' ? 'bg-white/10' : ''
+                <Link
+                  href="/zoom-meetings"
+                  className={`flex items-center justify-between px-3 py-2 rounded-lg transition-all duration-200 hover:bg-white/5 ${
+                    currentPage === 'zoom-meetings' ? 'bg-white/10' : ''
                   }`}
                 >
                   <div className="flex items-center space-x-3">
-                    <FiFileText className="w-4 h-4 text-white/70" />
+                    <FiVideo className="w-4 h-4 text-white/70" />
                     <span className="text-sm text-white/80">
-                      <T>PDF to Dialogue</T>
+                      <T>Zoom Meeting Notes</T>
                     </span>
                   </div>
-                  <span className="text-[9px] px-1.5 py-0.5 bg-orange-500 text-white rounded-full font-medium">
-                    Beta
+                  <span className="text-[9px] px-1.5 py-0.5 bg-blue-500 text-white rounded-full font-medium">
+                    New
                   </span>
-                </div>
+                </Link>
                 
                 <Link
                   href="/live-transcription"

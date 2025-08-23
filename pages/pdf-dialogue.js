@@ -5,7 +5,7 @@ import { useAuth } from '../components/AuthContext';
 import Sidebar from '../components/Sidebar';
 import Modal from '../components/Modal';
 import T from '../components/T';
-import { FiUpload, FiFileText, FiUsers, FiUser, FiPlay, FiDownload, FiLoader, FiX, FiCheck, FiCopy } from 'react-icons/fi';
+import { FiUpload, FiFileText, FiUsers, FiUser, FiPlay, FiDownload, FiLoader, FiX, FiCheck, FiCopy, FiMic, FiSettings, FiVolume2, FiPause } from 'react-icons/fi';
 
 export default function PDFDialogue() {
   const { user, logout, loading: authLoading, authChecked } = useAuth();
@@ -20,11 +20,321 @@ export default function PDFDialogue() {
   const [progress, setProgress] = useState('');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
+  // Browser TTS Enhancement States
+  const [maryTTSAvailable, setMaryTTSAvailable] = useState(false);
+  const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
+  const [currentlyPlaying, setCurrentlyPlaying] = useState(null);
+  const [audioProgress, setAudioProgress] = useState({});
+  const [voiceSettings, setVoiceSettings] = useState({
+    femaleVoice: 'cmu-slt-hsmm', // Default female voice for MaryTTS
+    maleVoice: 'cmu-bdl-hsmm',   // Default male voice for MaryTTS
+    speed: 1.0,
+    emotion: 'neutral'
+  });
+  const [showVoiceSettings, setShowVoiceSettings] = useState(false);
+  const [availableBrowserVoices, setAvailableBrowserVoices] = useState([]);
+  
+  // Fixed UK voices - not changeable by user
+  const defaultBrowserVoices = {
+    female: 'Google UK English Female',
+    male: 'Google UK English Male'
+  };
+
+  // Browser TTS Enhancement States
+  const [browserVoices, setBrowserVoices] = useState([]);
+  const [browserTTSAvailable, setBrowserTTSAvailable] = useState(false);
+
+  // MaryTTS Voice Options
+  const maryTTSVoices = {
+    female: [
+      { value: 'cmu-slt-hsmm', label: 'Sarah (Clear Female)' },
+      { value: 'cmu-clb-hsmm', label: 'Claire (Warm Female)' },
+      { value: 'cmu-awb-hsmm', label: 'Amy (Bright Female)' }
+    ],
+    male: [
+      { value: 'cmu-bdl-hsmm', label: 'Brian (Natural Male)' },
+      { value: 'cmu-rms-hsmm', label: 'Robert (Smooth Male)' },
+      { value: 'cmu-awb-hsmm', label: 'Andrew (Deep Male)' }
+    ]
+  };
+
   useEffect(() => {
     if (authChecked && !user) {
       router.push('/login');
     }
   }, [user, router, authChecked]);
+
+  // Check MaryTTS availability on component mount
+  useEffect(() => {
+    checkMaryTTSAvailability();
+    loadBrowserVoices();
+  }, []);
+
+  // Load browser voices when component mounts
+  const loadBrowserVoices = () => {
+    if ('speechSynthesis' in window) {
+      setBrowserTTSAvailable(true);
+      
+      const loadVoices = () => {
+        const voices = speechSynthesis.getVoices();
+        console.log('🎤 Available browser voices:', voices.length);
+        
+        if (voices.length > 0) {
+          setBrowserVoices(voices);
+          
+          // Auto-select best voices for male/female
+          const femaleVoices = voices.filter(voice => 
+            voice.name.toLowerCase().includes('female') ||
+            voice.name.toLowerCase().includes('woman') ||
+            voice.name.toLowerCase().includes('zira') ||
+            voice.name.toLowerCase().includes('hazel') ||
+            voice.name.toLowerCase().includes('susan') ||
+            voice.name.toLowerCase().includes('samantha') ||
+            voice.name.toLowerCase().includes('alex female') ||
+            (voice.gender && voice.gender.toLowerCase() === 'female')
+          );
+          
+          const maleVoices = voices.filter(voice => 
+            voice.name.toLowerCase().includes('male') ||
+            voice.name.toLowerCase().includes('man') ||
+            voice.name.toLowerCase().includes('david') ||
+            voice.name.toLowerCase().includes('mark') ||
+            voice.name.toLowerCase().includes('ryan') ||
+            voice.name.toLowerCase().includes('alex') ||
+            (voice.gender && voice.gender.toLowerCase() === 'male')
+          );
+          
+          console.log('👩 Available female voices:', femaleVoices.map(v => v.name));
+          console.log('� Available male voices:', maleVoices.map(v => v.name));
+        }
+      };
+      
+      // Load voices immediately if available
+      loadVoices();
+      
+      // Also listen for voiceschanged event (some browsers load voices asynchronously)
+      speechSynthesis.onvoiceschanged = loadVoices;
+    } else {
+      setBrowserTTSAvailable(false);
+      console.log('❌ Browser TTS not available');
+    }
+  };
+
+  // Find best matching UK voice
+  const findBestVoice = (targetVoiceName) => {
+    const voices = speechSynthesis.getVoices();
+    
+    // Try exact match first
+    let voice = voices.find(v => v.name.toLowerCase().includes(targetVoiceName.toLowerCase()));
+    
+    // Fallback logic for UK voices
+    if (!voice) {
+      if (targetVoiceName.includes('Female')) {
+        voice = voices.find(v => 
+          (v.name.toLowerCase().includes('uk') || v.name.toLowerCase().includes('british')) && 
+          v.name.toLowerCase().includes('female')
+        ) || voices.find(v => 
+          v.name.toLowerCase().includes('female') && v.lang.includes('en')
+        ) || voices.find(v => v.name.toLowerCase().includes('female'));
+      } else {
+        voice = voices.find(v => 
+          (v.name.toLowerCase().includes('uk') || v.name.toLowerCase().includes('british')) && 
+          v.name.toLowerCase().includes('male')
+        ) || voices.find(v => 
+          v.name.toLowerCase().includes('male') && v.lang.includes('en')
+        ) || voices.find(v => v.name.toLowerCase().includes('male'));
+      }
+    }
+    
+    return voice || voices[0]; // Fallback to first available voice
+  };
+
+  // Play audio with browser TTS using fixed UK voices
+  const playWithBrowserTTS = (text, isFemale) => {
+    if ('speechSynthesis' in window) {
+      // Stop any current speech
+      speechSynthesis.cancel();
+      
+      const utterance = new SpeechSynthesisUtterance(text);
+      
+      // Use fixed UK voices
+      const targetVoice = isFemale ? defaultBrowserVoices.female : defaultBrowserVoices.male;
+      const voice = findBestVoice(targetVoice);
+      
+      if (voice) {
+        utterance.voice = voice;
+        console.log(`🗣️ Using voice: ${voice.name} for ${isFemale ? 'female' : 'male'} speech`);
+      }
+      
+      utterance.rate = voiceSettings.speed;
+      utterance.pitch = isFemale ? 1.1 : 0.9; // Slightly higher pitch for female
+      utterance.volume = 1;
+      
+      utterance.onstart = () => console.log('🔊 TTS started');
+      utterance.onend = () => console.log('🔇 TTS ended');
+      utterance.onerror = (e) => console.error('TTS error:', e);
+      
+      speechSynthesis.speak(utterance);
+    }
+  };
+
+  // MaryTTS Functions
+  const checkMaryTTSAvailability = async () => {
+    try {
+      const response = await fetch('/api/marytts/status');
+      if (response.ok) {
+        setMaryTTSAvailable(true);
+        console.log('🎤 MaryTTS is available!');
+      }
+    } catch (error) {
+      setMaryTTSAvailable(false);
+      console.log('ℹ️ MaryTTS not available - fallback mode enabled');
+    }
+  };
+
+  const generateAudioWithMaryTTS = async (text, isFemale, segmentIndex) => {
+    try {
+      setAudioProgress(prev => ({ ...prev, [segmentIndex]: 'generating' }));
+      
+      const voice = isFemale ? voiceSettings.femaleVoice : voiceSettings.maleVoice;
+      
+      const response = await fetch('/api/marytts/synthesize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text,
+          voice,
+          emotion: voiceSettings.emotion,
+          speed: voiceSettings.speed
+        })
+      });
+
+      if (response.ok) {
+        const contentType = response.headers.get('content-type');
+        
+        if (contentType && contentType.includes('audio')) {
+          // Audio generated successfully
+          const audioBlob = await response.blob();
+          const audioUrl = URL.createObjectURL(audioBlob);
+          
+          setResult(prev => ({
+            ...prev,
+            audioSegments: {
+              ...prev.audioSegments,
+              [segmentIndex]: { url: audioUrl, voice }
+            }
+          }));
+          
+          setAudioProgress(prev => ({ ...prev, [segmentIndex]: 'ready' }));
+          return audioUrl;
+          
+        } else {
+          // Fallback instructions returned
+          const fallbackData = await response.json();
+          setAudioProgress(prev => ({ ...prev, [segmentIndex]: 'fallback' }));
+          
+          // Show fallback modal or instructions
+          showMaryTTSInstructions(fallbackData, text);
+        }
+      } else {
+        throw new Error('Audio generation failed');
+      }
+      
+    } catch (error) {
+      console.error('MaryTTS error:', error);
+      setAudioProgress(prev => ({ ...prev, [segmentIndex]: 'error' }));
+      
+      // Fallback to browser TTS
+      if ('speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = voiceSettings.speed;
+        speechSynthesis.speak(utterance);
+      }
+    }
+  };
+
+  const generateAllAudio = async () => {
+    if (!result || !result.transcript) return;
+    
+    setIsGeneratingAudio(true);
+    const segments = result.transcript.split('\n').filter(line => line.trim());
+    
+    for (let i = 0; i < segments.length; i++) {
+      const segment = segments[i];
+      if (segment.includes('Person A:') || segment.includes('Person B:')) {
+        const text = segment.replace(/Person [AB]:\s*/, '');
+        const isFemale = segment.includes('Person A:'); // Assuming Person A is female
+        
+        await generateAudioWithMaryTTS(text, isFemale, i);
+        
+        // Small delay between generations
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
+    
+    setIsGeneratingAudio(false);
+  };
+
+  const playAudioSegment = (audioUrl, segmentIndex) => {
+    if (currentlyPlaying) {
+      currentlyPlaying.pause();
+      setCurrentlyPlaying(null);
+    }
+
+    const audio = new Audio(audioUrl);
+    audio.play();
+    setCurrentlyPlaying(audio);
+
+    audio.onended = () => {
+      setCurrentlyPlaying(null);
+    };
+
+    audio.onerror = () => {
+      console.error('Audio playback error');
+      setCurrentlyPlaying(null);
+    };
+  };
+
+  const showMaryTTSInstructions = (fallbackData, text) => {
+    // Create a modal or notification with TTS instructions
+    const instructionText = `
+📢 MaryTTS Audio Generation
+
+Text: "${text}"
+
+🎤 Browser TTS: 
+1. Copy the text above
+2. Select it and right-click → "Read Aloud"
+
+💾 Install MaryTTS for better quality:
+${fallbackData.instructions?.maryTTSInstall?.windows?.join('\n') || 'Visit MaryTTS website for installation'}
+    `;
+    
+    alert(instructionText); // Simple alert - you could replace with a nice modal
+  };
+
+  // Generate all audio with Browser TTS
+  const generateAllBrowserAudio = async () => {
+    if (!result?.transcript) return;
+    
+    setIsGeneratingAudio(true);
+    const segments = result.transcript.split('\n').filter(line => line.trim());
+    
+    for (let i = 0; i < segments.length; i++) {
+      const segment = segments[i];
+      if (segment.includes('Person A:') || segment.includes('Person B:')) {
+        const text = segment.replace(/Person [AB]:\s*/, '');
+        const isFemale = segment.includes('Person A:');
+        
+        // Play each segment with a delay
+        setTimeout(() => {
+          playWithBrowserTTS(text, isFemale);
+        }, i * 3000); // 3 second delay between segments
+      }
+    }
+    
+    setIsGeneratingAudio(false);
+  };
 
   if (!authChecked || authLoading) {
     return (
@@ -400,6 +710,204 @@ export default function PDFDialogue() {
                     </button>
                   </div>
 
+                  {/* Enhanced Voice Settings */}
+                  <div className="mb-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-sm font-medium text-white flex items-center gap-2">
+                        <FiMic className="w-4 h-4" />
+                        <T>Voice Settings</T>
+                        {maryTTSAvailable && (
+                          <span className="text-xs bg-green-500/20 text-green-400 px-2 py-1 rounded">
+                            MaryTTS Ready
+                          </span>
+                        )}
+                        {browserTTSAvailable && (
+                          <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded">
+                            Browser TTS Ready ({browserVoices.length} voices)
+                          </span>
+                        )}
+                      </h3>
+                      <button
+                        onClick={() => setShowVoiceSettings(!showVoiceSettings)}
+                        className="text-white/60 hover:text-white transition-colors"
+                      >
+                        <FiSettings className="w-4 h-4" />
+                      </button>
+                    </div>
+                    
+                    {showVoiceSettings && (
+                      <div className="p-4 bg-white/5 rounded-lg border border-white/10 space-y-6">
+                        
+                        {/* Browser TTS Section */}
+                        {browserTTSAvailable && (
+                          <div className="border border-blue-500/20 rounded-lg p-4 bg-blue-500/5">
+                            <h4 className="text-sm font-medium text-blue-400 mb-3 flex items-center gap-2">
+                              <FiVolume2 className="w-4 h-4" />
+                              Browser Text-to-Speech (Recommended)
+                            </h4>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                              <div>
+                                <label className="block text-xs text-white/60 mb-2">
+                                  <T>Female Voice (Person A)</T>
+                                </label>
+                                <div className="w-full bg-white/10 border border-white/20 rounded px-3 py-2 text-white text-sm">
+                                  <span className="text-pink-400">👩</span> {defaultBrowserVoices.female}
+                                  <span className="text-xs text-white/50 ml-2">(Fixed UK Voice)</span>
+                                </div>
+                              </div>
+                              
+                              <div>
+                                <label className="block text-xs text-white/60 mb-2">
+                                  <T>Male Voice (Person B)</T>
+                                </label>
+                                <div className="w-full bg-white/10 border border-white/20 rounded px-3 py-2 text-white text-sm">
+                                  <span className="text-blue-400">👨</span> {defaultBrowserVoices.male}
+                                  <span className="text-xs text-white/50 ml-2">(Fixed UK Voice)</span>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => playWithBrowserTTS("Hello, this is the female voice for Person A", true)}
+                                className="flex items-center gap-2 px-3 py-2 bg-pink-500/20 hover:bg-pink-500/30 rounded text-sm text-pink-400 transition-colors"
+                              >
+                                <FiPlay className="w-4 h-4" />
+                                Test Female Voice
+                              </button>
+                              
+                              <button
+                                onClick={() => playWithBrowserTTS("Hello, this is the male voice for Person B", false)}
+                                className="flex items-center gap-2 px-3 py-2 bg-blue-500/20 hover:bg-blue-500/30 rounded text-sm text-blue-400 transition-colors"
+                              >
+                                <FiPlay className="w-4 h-4" />
+                                Test Male Voice
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* MaryTTS Section */}
+                        <div className="border border-green-500/20 rounded-lg p-4 bg-green-500/5">
+                          <h4 className="text-sm font-medium text-green-400 mb-3 flex items-center gap-2">
+                            <FiMic className="w-4 h-4" />
+                            MaryTTS High-Quality Voices
+                          </h4>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-xs text-white/60 mb-2">
+                                <T>Female Voice (Person A)</T>
+                              </label>
+                              <select
+                                value={voiceSettings.femaleVoice}
+                                onChange={(e) => setVoiceSettings(prev => ({...prev, femaleVoice: e.target.value}))}
+                                className="w-full bg-white/10 border border-white/20 rounded px-3 py-2 text-white text-sm"
+                              >
+                                {maryTTSVoices.female.map(voice => (
+                                  <option key={voice.value} value={voice.value} className="bg-gray-800">
+                                    {voice.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            
+                            <div>
+                              <label className="block text-xs text-white/60 mb-2">
+                                <T>Male Voice (Person B)</T>
+                              </label>
+                              <select
+                                value={voiceSettings.maleVoice}
+                                onChange={(e) => setVoiceSettings(prev => ({...prev, maleVoice: e.target.value}))}
+                                className="w-full bg-white/10 border border-white/20 rounded px-3 py-2 text-white text-sm"
+                              >
+                                {maryTTSVoices.male.map(voice => (
+                                  <option key={voice.value} value={voice.value} className="bg-gray-800">
+                                    {voice.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Common Settings */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs text-white/60 mb-2">
+                              <T>Speed: {voiceSettings.speed}x</T>
+                            </label>
+                            <input
+                              type="range"
+                              min="0.5"
+                              max="2.0"
+                              step="0.1"
+                              value={voiceSettings.speed}
+                              onChange={(e) => setVoiceSettings(prev => ({...prev, speed: parseFloat(e.target.value)}))}
+                              className="w-full"
+                            />
+                          </div>
+                          
+                          <div>
+                            <label className="block text-xs text-white/60 mb-2">
+                              <T>Emotion</T>
+                            </label>
+                            <select
+                              value={voiceSettings.emotion}
+                              onChange={(e) => setVoiceSettings(prev => ({...prev, emotion: e.target.value}))}
+                              className="w-full bg-white/10 border border-white/20 rounded px-3 py-2 text-white text-sm"
+                            >
+                              <option value="neutral" className="bg-gray-800">Neutral</option>
+                              <option value="happy" className="bg-gray-800">Happy</option>
+                              <option value="sad" className="bg-gray-800">Sad</option>
+                              <option value="excited" className="bg-gray-800">Excited</option>
+                            </select>
+                          </div>
+                        </div>
+                        
+                        <div className="flex gap-2 pt-2">
+                          {browserTTSAvailable && (
+                            <button
+                              onClick={generateAllBrowserAudio}
+                              disabled={isGeneratingAudio || !result?.transcript}
+                              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 rounded text-sm text-white transition-colors"
+                            >
+                              <FiVolume2 className="w-4 h-4" />
+                              <T>Play All with Browser TTS</T>
+                            </button>
+                          )}
+                          
+                          <button
+                            onClick={generateAllAudio}
+                            disabled={isGeneratingAudio || !result?.transcript}
+                            className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 rounded text-sm text-white transition-colors"
+                          >
+                            {isGeneratingAudio ? (
+                              <>
+                                <FiLoader className="w-4 h-4 animate-spin" />
+                                <T>Generating Audio...</T>
+                              </>
+                            ) : (
+                              <>
+                                <FiMic className="w-4 h-4" />
+                                <T>Generate with MaryTTS</T>
+                              </>
+                            )}
+                          </button>
+                          
+                          <button
+                            onClick={checkMaryTTSAvailability}
+                            className="flex items-center gap-2 px-3 py-2 border border-white/20 hover:bg-white/5 rounded text-sm text-white/80 transition-colors"
+                          >
+                            <FiMic className="w-4 h-4" />
+                            <T>Check MaryTTS</T>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   {/* Audio Player */}
                   {result.audioUrl ? (
                     <div className="mb-6">
@@ -582,30 +1090,140 @@ export default function PDFDialogue() {
                       </div>
                       <div className="border border-white/20 rounded-xl p-4 max-h-80 overflow-y-auto bg-white/5">
                         {mode === 'dialogue' ? (
-                          // Enhanced dialogue display with speaker indicators
+                          // Enhanced dialogue display with speaker indicators and MaryTTS controls
                           <div className="space-y-3">
                             {result.transcript.split('\n').filter(line => line.trim()).map((line, index) => {
                               if (line.includes('Person A:')) {
+                                const text = line.replace('Person A:', '').trim();
+                                const audioSegment = result.audioSegments?.[index];
+                                const progressState = audioProgress[index];
+                                
                                 return (
-                                  <div key={index} className="flex items-start gap-3">
+                                  <div key={index} className="flex items-start gap-3 p-3 bg-pink-500/10 rounded-lg border border-pink-500/20">
                                     <span className="text-pink-400 text-lg mt-0.5">👩</span>
                                     <div className="flex-1">
-                                      <p className="text-xs text-pink-300 mb-1">Woman</p>
-                                      <p className="text-sm text-white/80 leading-relaxed">
-                                        {line.replace('Person A:', '').trim()}
+                                      <p className="text-xs text-pink-300 mb-1 flex items-center gap-2">
+                                        Woman 
+                                        <span className="text-xs text-white/40">({voiceSettings.femaleVoice})</span>
                                       </p>
+                                      <p className="text-sm text-white/80 leading-relaxed mb-2">
+                                        {text}
+                                      </p>
+                                    </div>
+                                    <div className="flex items-center gap-2 ml-2">
+                                      {audioSegment?.url ? (
+                                        <button
+                                          onClick={() => playAudioSegment(audioSegment.url, index)}
+                                          className="p-2 bg-pink-500/20 hover:bg-pink-500/30 rounded-lg text-pink-400 transition-colors"
+                                          title="Play audio"
+                                        >
+                                          <FiPlay className="w-4 h-4" />
+                                        </button>
+                                      ) : (
+                                        <>
+                                          {/* Browser TTS Button */}
+                                          {browserTTSAvailable && (
+                                            <button
+                                              onClick={() => playWithBrowserTTS(text, true)}
+                                              className="p-2 bg-blue-500/20 hover:bg-blue-500/30 rounded-lg text-blue-400 transition-colors"
+                                              title="Play with UK Female Voice"
+                                            >
+                                              <FiVolume2 className="w-4 h-4" />
+                                            </button>
+                                          )}
+                                          
+                                          {/* MaryTTS Button */}
+                                          <button
+                                            onClick={() => generateAudioWithMaryTTS(text, true, index)}
+                                            disabled={progressState === 'generating'}
+                                            className="p-2 bg-pink-500/20 hover:bg-pink-500/30 disabled:opacity-50 rounded-lg text-pink-400 transition-colors"
+                                            title="Generate audio with MaryTTS"
+                                          >
+                                            {progressState === 'generating' ? (
+                                              <FiLoader className="w-4 h-4 animate-spin" />
+                                            ) : (
+                                              <FiMic className="w-4 h-4" />
+                                            )}
+                                          </button>
+                                        </>
+                                      )}
+                                      
+                                      {progressState === 'fallback' && (
+                                        <button
+                                          onClick={() => playWithBrowserTTS(text, true)}
+                                          className="p-2 bg-yellow-500/20 hover:bg-yellow-500/30 rounded-lg text-yellow-400 transition-colors"
+                                          title="Browser TTS fallback"
+                                        >
+                                          <FiVolume2 className="w-4 h-4" />
+                                        </button>
+                                      )}
                                     </div>
                                   </div>
                                 );
                               } else if (line.includes('Person B:')) {
+                                const text = line.replace('Person B:', '').trim();
+                                const audioSegment = result.audioSegments?.[index];
+                                const progressState = audioProgress[index];
+                                
                                 return (
-                                  <div key={index} className="flex items-start gap-3">
+                                  <div key={index} className="flex items-start gap-3 p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
                                     <span className="text-blue-400 text-lg mt-0.5">👨</span>
                                     <div className="flex-1">
-                                      <p className="text-xs text-blue-300 mb-1">Man</p>
-                                      <p className="text-sm text-white/80 leading-relaxed">
-                                        {line.replace('Person B:', '').trim()}
+                                      <p className="text-xs text-blue-300 mb-1 flex items-center gap-2">
+                                        Man 
+                                        <span className="text-xs text-white/40">({voiceSettings.maleVoice})</span>
                                       </p>
+                                      <p className="text-sm text-white/80 leading-relaxed mb-2">
+                                        {text}
+                                      </p>
+                                    </div>
+                                    <div className="flex items-center gap-2 ml-2">
+                                      {audioSegment?.url ? (
+                                        <button
+                                          onClick={() => playAudioSegment(audioSegment.url, index)}
+                                          className="p-2 bg-blue-500/20 hover:bg-blue-500/30 rounded-lg text-blue-400 transition-colors"
+                                          title="Play audio"
+                                        >
+                                          <FiPlay className="w-4 h-4" />
+                                        </button>
+                                      ) : (
+                                        <>
+                                          {/* Browser TTS Button */}
+                                          {browserTTSAvailable && (
+                                            <button
+                                              onClick={() => playWithBrowserTTS(text, false)}
+                                              className="p-2 bg-blue-500/20 hover:bg-blue-500/30 rounded-lg text-blue-400 transition-colors"
+                                              title="Play with UK Male Voice"
+                                            >
+                                              <FiVolume2 className="w-4 h-4" />
+                                            </button>
+                                          )}
+                                          
+                                          {/* MaryTTS Button */}
+                                          <button
+                                            onClick={() => generateAudioWithMaryTTS(text, false, index)}
+                                            disabled={progressState === 'generating'}
+                                            className="p-2 bg-blue-500/20 hover:bg-blue-500/30 disabled:opacity-50 rounded-lg text-blue-400 transition-colors"
+                                            title="Generate audio with MaryTTS"
+                                          >
+                                            {progressState === 'generating' ? (
+                                              <FiLoader className="w-4 h-4 animate-spin" />
+                                            ) : (
+                                              <FiMic className="w-4 h-4" />
+                                            )}
+                                          </button>
+                                        </>
+                                      )}
+                                      
+                                      {progressState === 'fallback' && (
+                                        <button
+                                          onClick={() => playWithBrowserTTS(text, false)}
+                                          className="p-2 bg-yellow-500/20 hover:bg-yellow-500/30 rounded-lg text-yellow-400 transition-colors"
+                                          title="Browser TTS fallback"
+                                        >
+                                          <FiVolume2 className="w-4 h-4" />
+                                        </button>
+                                      )}
                                     </div>
                                   </div>
                                 );

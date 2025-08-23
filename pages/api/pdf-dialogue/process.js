@@ -244,22 +244,27 @@ async function generateScriptWithGemini(text, mode) {
 
 ${text}
 
-Create a dialogue between two people discussing this document.
+Create a natural dialogue between two people discussing this document. IMPORTANT: Each person must speak in COMPLETE SENTENCES only.
 
-Person A should be curious, asking questions.
-Person B should be knowledgeable, explaining clearly.
+Person A: A curious person asking thoughtful questions (use British female voice)
+Person B: A knowledgeable person providing clear explanations (use British male voice)
 
-Keep the conversation natural and engaging.
-Do not repeat the text word-for-word — summarize and interpret.
+RULES:
+1. Each line must be a COMPLETE sentence or thought
+2. Never cut off mid-sentence - finish the complete idea
+3. Minimum 15-20 words per line to ensure complete thoughts
+4. Natural conversation flow with proper turn-taking
+5. Cover all key points from the document
+6. Make it engaging and informative
 
-Output strictly in this format:
+Format EXACTLY like this:
 
-Person A: [line]
-Person B: [line]
-Person A: [line]
-Person B: [line]
+Person A: [Complete sentence asking about or commenting on the document - minimum 15 words]
+Person B: [Complete sentence answering or explaining - minimum 15 words]  
+Person A: [Complete sentence with follow-up question or observation - minimum 15 words]
+Person B: [Complete sentence with detailed explanation - minimum 15 words]
 
-Make it conversational and informative, covering the key points of the document.`;
+Continue this pattern to cover the entire document content with complete, natural sentences.`;
     } else {
       prompt = `You are given the following document text:
 
@@ -530,8 +535,31 @@ async function generateDialogueWithSystemTTS(script) {
     
     console.log(`🎵 Generated ${audioSegments.length} audio segments (${personACount} female, ${personBCount} male)`);
     
+    // Don't throw error if no audio - provide text-only experience
     if (audioSegments.length === 0) {
-      throw new Error('No audio segments were generated successfully');
+      console.log('💡 No audio segments generated - providing enhanced text-only experience');
+      return {
+        audioUrl: null,
+        audioUrls: [],
+        isDialogue: true,
+        totalSegments: 0,
+        femaleSegments: personACount,
+        maleSegments: personBCount,
+        ttsProvider: 'Text-only (MaryTTS not available)',
+        fallbackMode: true,
+        instructions: {
+          title: 'Audio Generation Instructions',
+          browserTTS: 'Copy any dialogue line and use browser "Read Aloud" feature',
+          maryTTS: {
+            install: [
+              '1. Download MaryTTS: https://github.com/marytts/marytts/releases',
+              '2. Extract to C:\\marytts\\',
+              '3. Run: marytts-server.bat',
+              '4. Refresh page for high-quality voices'
+            ]
+          }
+        }
+      };
     }
     
     // Sort segments by order to maintain dialogue sequence
@@ -894,7 +922,7 @@ function extractKeyWords(text) {
 // Create enhanced text-only experience with detailed TTS instructions
 async function createEnhancedTextExperience(script, mode) {
   try {
-    console.log('📝 Creating enhanced text-only experience with TTS instructions...');
+    console.log('📝 Creating enhanced text-only experience with MaryTTS instructions...');
     
     if (mode === 'dialogue') {
       return await createDialogueTextExperience(script);
