@@ -47,7 +47,7 @@ const Sidebar = ({ user, currentPage = 'dashboard', onLogout, onSidebarToggle })
 
   // Auto-expand Other Features dropdown when on feature pages
   useEffect(() => {
-    if (currentPage === 'zoom-meetings' || currentPage === 'live-transcription' || currentPage === 'live-transcription-sessions') {
+    if (currentPage === 'live-transcription' || currentPage === 'live-transcription-sessions') {
       setOtherFeaturesOpen(true);
     }
   }, [currentPage]);
@@ -174,7 +174,7 @@ const Sidebar = ({ user, currentPage = 'dashboard', onLogout, onSidebarToggle })
             <button
               onClick={() => setOtherFeaturesOpen(!otherFeaturesOpen)}
               className={`w-full flex items-center justify-between px-3 py-2 rounded-lg mb-1 transition-all duration-200 hover:bg-white/5 ${
-                currentPage === 'zoom-meetings' || currentPage === 'live-transcription' || currentPage === 'live-transcription-sessions' ? 'bg-white/10' : ''
+                currentPage === 'live-transcription' || currentPage === 'live-transcription-sessions' ? 'bg-white/10' : ''
               }`}
             >
               <div className="flex items-center space-x-3">
@@ -199,6 +199,7 @@ const Sidebar = ({ user, currentPage = 'dashboard', onLogout, onSidebarToggle })
             {/* Dropdown Items */}
             {otherFeaturesOpen && !isCollapsed && !isSidebarCollapsed && (
               <div className="ml-6 space-y-1">
+                {/* Zoom Meeting Notes - DISABLED
                 <Link
                   href="/zoom-meetings"
                   className={`flex items-center justify-between px-3 py-2 rounded-lg transition-all duration-200 hover:bg-white/5 ${
@@ -215,6 +216,7 @@ const Sidebar = ({ user, currentPage = 'dashboard', onLogout, onSidebarToggle })
                     New
                   </span>
                 </Link>
+                */}
                 
                 <Link
                   href="/live-transcription"

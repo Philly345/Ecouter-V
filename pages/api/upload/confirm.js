@@ -191,18 +191,54 @@ async function pollTranscriptionStatus(fileId, transcriptId, settings) {
   const { db } = await connectDB();
   let attempts = 0;
   const maxAttempts = 360; // 30 minutes
+  const timeoutAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes from now
+
+  console.log(`🔄 Starting polling for file ${fileId} with timeout at ${timeoutAt.toISOString()}`);
 
   while (attempts < maxAttempts) {
+    // Check if we've exceeded our timeout
+    if (new Date() > timeoutAt) {
+      console.error(`⏰ Polling timeout reached for file ${fileId}`);
+      await db.collection('files').updateOne(
+        { _id: new ObjectId(fileId) },
+        { 
+          $set: { 
+            status: 'error',
+            error: 'Processing timeout - exceeded 30 minute limit',
+            timeoutAt: new Date(),
+            updatedAt: new Date()
+          }
+        }
+      );
+      throw new Error('Transcription timeout - processing took too long');
+    }
+
     await new Promise(resolve => setTimeout(resolve, 5000)); // 5-second interval
     attempts++;
+    
     try {
+      console.log(`🔍 Polling attempt ${attempts}/${maxAttempts} for file ${fileId}`);
+      
       const response = await fetch(`https://api.assemblyai.com/v2/transcript/${transcriptId}`, {
         headers: {
           'Authorization': `Bearer ${process.env.ASSEMBLYAI_API_KEY}`,
         },
       });
+      
+      if (!response.ok) {
+        console.warn(`⚠️ API response not OK: ${response.status} ${response.statusText}`);
+        continue; // Continue polling on API errors
+      }
+      
       const data = await response.json();
-      console.log(`[DEBUG] Poll attempt ${attempts} - status: ${data.status}`, data);
+      console.log(`[DEBUG] Poll attempt ${attempts} - status: ${data.status}`);
+      
+      // Update last activity to prevent cleanup
+      await db.collection('files').updateOne(
+        { _id: new ObjectId(fileId) },
+        { $set: { lastPolledAt: new Date(), updatedAt: new Date() } }
+      );
+      
       if (data.status === 'completed') {
         console.log('✅ Transcription completed for file:', fileId);
         let transcriptText = data.text;
@@ -235,6 +271,7 @@ async function pollTranscriptionStatus(fileId, transcriptId, settings) {
               timestamps,
               duration: data.audio_duration,
               confidence: data.confidence,
+              completedAt: new Date(),
               updatedAt: new Date()
             }
           }
@@ -242,12 +279,55 @@ async function pollTranscriptionStatus(fileId, transcriptId, settings) {
         return;
       } else if (data.status === 'error') {
         console.error(`[ERROR] AssemblyAI returned error status:`, data);
+        await db.collection('files').updateOne(
+          { _id: new ObjectId(fileId) },
+          { 
+            $set: { 
+              status: 'error',
+              error: `AssemblyAI transcription failed: ${data.error}`,
+              errorAt: new Date(),
+              updatedAt: new Date()
+            }
+          }
+        );
         throw new Error(`AssemblyAI transcription failed: ${data.error}`);
       }
+      
+      // Log progress every minute
+      if (attempts % 12 === 0) {
+        console.log(`⏳ Still processing file ${fileId}... (${Math.round(attempts * 5 / 60)} minutes elapsed)`);
+      }
+      
     } catch (error) {
       console.error(`[ERROR] Polling transcription status (attempt ${attempts}):`, error);
+      
+      // Don't fail immediately on network errors, but track them
+      await db.collection('files').updateOne(
+        { _id: new ObjectId(fileId) },
+        { 
+          $set: { 
+            lastPollingError: error.message,
+            lastPollingErrorAt: new Date(),
+            updatedAt: new Date()
+          }
+        }
+      );
     }
   }
+  
+  // Max attempts reached
+  console.error(`❌ Max polling attempts reached for file ${fileId}`);
+  await db.collection('files').updateOne(
+    { _id: new ObjectId(fileId) },
+    { 
+      $set: { 
+        status: 'error',
+        error: 'Transcription timeout - processing took too long',
+        maxAttemptsReached: true,
+        updatedAt: new Date()
+      }
+    }
+  );
   throw new Error('Transcription timeout - processing took too long');
 }
 
