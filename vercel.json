@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/comprehensive-ai-monitor",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cleanup-stuck-files",
+      "schedule": "*/30 * * * *"
+    }
+  ]
+}
