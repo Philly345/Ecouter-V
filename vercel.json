@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/comprehensive-ai-monitor",
-      "schedule": "*/15 * * * *"
+      "schedule": "0 * * * *"
     },
     {
       "path": "/api/cleanup-stuck-files",

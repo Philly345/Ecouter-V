@@ -1,34 +1,24 @@
-// Test 15-Minute Monitoring Schedule
-console.log('⚡ ====== 15-MINUTE MONITORING SCHEDULE TEST ======');
+// Test Hourly Monitoring Schedule
+console.log('⏰ ====== HOURLY MONITORING SCHEDULE TEST ======');
 console.log(`🕐 Current time: ${new Date().toLocaleString()}`);
 
-// Calculate next 15-minute intervals
+// Calculate next hour
 const now = new Date();
-const currentMinute = now.getMinutes();
-const currentSecond = now.getSeconds();
+const nextHour = new Date(now);
+nextHour.setHours(nextHour.getHours() + 1);
+nextHour.setMinutes(0);
+nextHour.setSeconds(0);
+nextHour.setMilliseconds(0);
 
-// Find next 15-minute mark
-const nextFifteenMinuteMark = Math.ceil(currentMinute / 15) * 15;
-const nextTrigger = new Date(now);
-nextTrigger.setMinutes(nextFifteenMinuteMark);
-nextTrigger.setSeconds(0);
-nextTrigger.setMilliseconds(0);
-
-// If we're past this hour's last 15-minute mark, go to next hour
-if (nextFifteenMinuteMark >= 60) {
-  nextTrigger.setHours(nextTrigger.getHours() + 1);
-  nextTrigger.setMinutes(0);
-}
-
-console.log('\n📅 NEW MONITORING SCHEDULE:');
-console.log('   Frequency: Every 15 minutes');
-console.log('   Cron: "*/15 * * * *"');
-console.log('   Daily checks: 96 (Vercel Hobby plan friendly)');
+console.log('\n📅 MONITORING SCHEDULE:');
+console.log('   Frequency: Every hour');
+console.log('   Cron: "0 * * * *"');
+console.log('   Daily checks: 24 (Perfect for all Vercel plans)');
 
 console.log('\n⏰ NEXT TRIGGER TIMES:');
 for (let i = 0; i < 6; i++) {
-  const triggerTime = new Date(nextTrigger);
-  triggerTime.setMinutes(triggerTime.getMinutes() + (i * 15));
+  const triggerTime = new Date(nextHour);
+  triggerTime.setHours(triggerTime.getHours() + i);
   
   const timeStr = triggerTime.toLocaleTimeString('en-US', {
     hour: 'numeric',
@@ -40,20 +30,21 @@ for (let i = 0; i < 6; i++) {
 }
 
 console.log('\n📧 EMAIL FREQUENCY:');
-console.log('   - Report every 15 minutes');
-console.log('   - 4 reports per hour');
-console.log('   - 96 reports per day');
-console.log('   - Vercel Hobby plan compatible');
+console.log('   - Report every hour at :00 minutes');
+console.log('   - 24 reports per day');
+console.log('   - Compatible with ALL Vercel plans');
+console.log('   - Reliable and consistent monitoring');
 
 console.log('\n🎯 BENEFITS:');
-console.log('   ✅ Frequent issue detection');
-console.log('   ✅ Reasonable monitoring frequency');
-console.log('   ✅ Compatible with all Vercel plans');
-console.log('   ✅ Good balance of monitoring vs. limits');
+console.log('   ✅ Consistent hourly health checks');
+console.log('   ✅ Compatible with Hobby/Pro/Enterprise plans');
+console.log('   ✅ Reliable monitoring without limits');
+console.log('   ✅ Professional monitoring schedule');
+console.log('   ✅ Comprehensive system analysis every hour');
 
-const minutesUntilNext = Math.ceil((nextTrigger - now) / 1000 / 60);
-console.log(`\n⏰ NEXT COMPREHENSIVE REPORT: ${nextTrigger.toLocaleString()}`);
+const minutesUntilNext = Math.ceil((nextHour - now) / 1000 / 60);
+console.log(`\n⏰ NEXT COMPREHENSIVE REPORT: ${nextHour.toLocaleString()}`);
 console.log(`   (in approximately ${minutesUntilNext} minute${minutesUntilNext !== 1 ? 's' : ''})`);
 
-console.log('\n🚀 The monitoring system will now send reports every 15 minutes!');
-console.log('✅ Schedule optimized for Vercel plan compatibility.');
+console.log('\n🚀 The monitoring system will send hourly comprehensive reports!');
+console.log('✅ Schedule optimized for maximum Vercel compatibility.');
