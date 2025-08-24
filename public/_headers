@@ -9,3 +9,24 @@
   Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS
   Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With
   Access-Control-Max-Age: 86400
+
+# Favicon cache control for immediate refresh
+/favicon.ico
+  Cache-Control: public, max-age=86400, must-revalidate
+  Vary: Accept-Encoding
+
+/favicon-*.png
+  Cache-Control: public, max-age=86400, must-revalidate
+  Vary: Accept-Encoding
+
+/apple-touch-icon.png
+  Cache-Control: public, max-age=86400, must-revalidate
+  Vary: Accept-Encoding
+
+/logo-new.png
+  Cache-Control: public, max-age=86400, must-revalidate
+  Vary: Accept-Encoding
+
+/manifest.json
+  Cache-Control: public, max-age=3600, must-revalidate
+  Content-Type: application/manifest+json
