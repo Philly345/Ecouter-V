@@ -1,4 +1,4 @@
-import { verifyToken, getTokenFromRequest } from '../../../utils/auth.js';
+import { verifyTokenString, getTokenFromRequest } from '../../../utils/auth.js';
 import { connectDB } from '../../../lib/mongodb.js';
 import { ObjectId } from 'mongodb';
 import { 
@@ -17,7 +17,7 @@ export default async function handler(req, res) {
   try {
     // Verify authentication
     const token = getTokenFromRequest(req);
-    const decoded = verifyToken(token);
+    const decoded = verifyTokenString(token);
     
     if (!decoded) {
       return res.status(401).json({ error: 'Unauthorized' });
