@@ -277,24 +277,6 @@ export default function Dashboard() {
                     Last updated: {lastUpdated.toLocaleTimeString()}
                   </span>
                 )}
-                <button
-                  onClick={toggleAutoRefresh}
-                  className={`px-3 py-1 rounded-lg text-xs transition-colors ${
-                    autoRefresh 
-                      ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
-                      : 'bg-gray-500/20 text-gray-400 border border-gray-500/30'
-                  }`}
-                >
-                  Auto-refresh {autoRefresh ? 'ON' : 'OFF'}
-                </button>
-                <button
-                  onClick={handleRefresh}
-                  disabled={isRefreshing}
-                  className="px-3 py-1 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 rounded-lg text-blue-400 text-xs transition-colors flex items-center space-x-1"
-                >
-                  <FiActivity className={`w-3 h-3 ${isRefreshing ? 'animate-spin' : ''}`} />
-                  <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
-                </button>
               </div>
             </div>
           </div>
@@ -384,13 +366,6 @@ export default function Dashboard() {
                 </h2>
                 <div className="flex items-center space-x-2">
                   <button 
-                    onClick={handleRefresh}
-                    className="text-white/40 hover:text-white/60 transition-colors"
-                    title="Refresh files"
-                  >
-                    <FiActivity className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-                  </button>
-                  <button 
                     onClick={() => router.push('/files/recent')}
                     className="text-white/60 hover:text-white transition-colors text-sm"
                   >
@@ -431,18 +406,6 @@ export default function Dashboard() {
                 <h2 className="text-lg font-semibold text-white">
                   <T>Recent Activity</T>
                 </h2>
-                <div className="flex items-center space-x-2">
-                  <button 
-                    onClick={handleRefresh}
-                    className="text-white/40 hover:text-white/60 transition-colors"
-                    title="Refresh activity"
-                  >
-                    <FiActivity className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-                  </button>
-                  {autoRefresh && (
-                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" title="Auto-refresh active"></div>
-                  )}
-                </div>
               </div>
               
               <div className="space-y-4">
