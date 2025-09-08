@@ -226,29 +226,3 @@ async function generateChatWithGemini(chatPrompt) {
   console.log('✅ Chat: Gemini fallback succeeded');
   return generatedText.replace(/^Answer:/, '').trim();
 }
-    
-    // Clean up the response text
-    let responseText = generatedText.replace(/^Answer:/, '').trim();
-    
-    // Add some validation to make sure we have a good response
-    if (responseText.length < 5) {
-      console.error("Response too short:", responseText);
-      return "I received an incomplete response. Please try asking your question again.";
-    }
-    
-    return responseText;
-  } catch (error) {
-    console.error('Chat generation error:', error);
-    
-    // Provide more specific error messages
-    if (error.message && error.message.includes('API key')) {
-      return "There's an issue with the API configuration. Please contact support.";
-    }
-    
-    if (error.message && error.message.includes('400')) {
-      return "I couldn't process your question. Please try rephrasing it.";
-    }
-    
-    return "I'm sorry, I couldn't process your question properly. Please try asking something else about the audio.";
-  }
-}
