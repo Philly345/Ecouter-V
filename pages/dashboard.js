@@ -5,6 +5,7 @@ import Sidebar from '../components/Sidebar';
 import FileCard from '../components/FileCard';
 import { useAuth } from '../components/AuthContext';
 import T from '../components/T';
+import { getDashboardEventManager, DASHBOARD_EVENTS, timeAgo, isRecentActivity } from '../utils/realtime';
 import { 
   FiTrendingUp, 
   FiClock, 
@@ -20,6 +21,27 @@ export default function Dashboard() {
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [eventManager, setEventManager] = useState(null);
+
+  // Initialize event manager
+  useEffect(() => {
+    const manager = getDashboardEventManager();
+    setEventManager(manager);
+
+    // Subscribe to real-time events
+    const unsubscribeDataUpdate = manager.subscribe(DASHBOARD_EVENTS.DATA_UPDATE, (data) => {
+      console.log('📡 Real-time data update received:', data);
+      setDashboardData(data);
+      setLastUpdated(new Date());
+    });
+
+    return () => {
+      unsubscribeDataUpdate();
+    };
+  }, []);
 
   useEffect(() => {
     console.log('🏠 Dashboard useEffect - authChecked:', authChecked, 'user:', !!user);
@@ -38,11 +60,38 @@ export default function Dashboard() {
     }
   }, [user, router, authChecked]);
 
-  const fetchDashboardData = async () => {
-    console.log('🚀 Dashboard Frontend: Starting fetchDashboardData...');
+  // Auto-refresh effect
+  useEffect(() => {
+    if (!autoRefresh || !user || loading) return;
+
+    const interval = setInterval(() => {
+      console.log('🔄 Auto-refreshing dashboard data...');
+      fetchDashboardData(true); // true = silent refresh
+    }, 30000); // Refresh every 30 seconds
+
+    return () => clearInterval(interval);
+  }, [autoRefresh, user, loading]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      setAutoRefresh(false);
+    };
+  }, []);
+
+  const fetchDashboardData = async (silent = false) => {
+    if (!silent) {
+      console.log('🚀 Dashboard Frontend: Starting fetchDashboardData...');
+      setIsRefreshing(true);
+    }
     try {
       const token = localStorage.getItem('token');
       console.log('🔑 Dashboard Frontend: Token exists:', !!token);
+      
+      if (!token) {
+        router.push('/login');
+        return;
+      }
       
       // Add timeout to prevent infinite loading
       const controller = new AbortController();
@@ -59,10 +108,22 @@ export default function Dashboard() {
       clearTimeout(timeoutId);
       console.log('📡 Dashboard Frontend: API response status:', response.status);
 
+      if (response.status === 401) {
+        // Token is invalid, redirect to login
+        localStorage.removeItem('token');
+        router.push('/login');
+        return;
+      }
+
       if (response.ok) {
         const data = await response.json();
         console.log('📈 Dashboard Frontend: Received data from API:', data);
         console.log('📊 Dashboard Frontend: Stats object:', data.stats);
+        console.log('📊 Dashboard Frontend: Data structure check:', {
+          hasStats: !!data.stats,
+          statsKeys: data.stats ? Object.keys(data.stats) : [],
+          recentFilesCount: data.recentFiles ? data.recentFiles.length : 0
+        });
         console.log('📊 Dashboard Frontend: Setting dashboard data...');
         setDashboardData(data);
         console.log('✅ Dashboard Frontend: Dashboard data set successfully');
@@ -102,9 +163,25 @@ export default function Dashboard() {
         recentActivity: []
       });
     } finally {
-      console.log('🏁 Dashboard Frontend: Setting loading to false');
-      setLoading(false);
+      if (!silent) {
+        console.log('🏁 Dashboard Frontend: Setting loading to false');
+        setLoading(false);
+      }
+      setIsRefreshing(false);
+      setLastUpdated(new Date());
     }
+  };
+
+  // Manual refresh function
+  const handleRefresh = () => {
+    console.log('🔄 Manual refresh triggered');
+    fetchDashboardData();
+  };
+
+  // Toggle auto-refresh
+  const toggleAutoRefresh = () => {
+    setAutoRefresh(!autoRefresh);
+    console.log('🔄 Auto-refresh toggled:', !autoRefresh);
   };
 
   const formatFileSize = (bytes) => {
@@ -156,6 +233,16 @@ export default function Dashboard() {
     recentActivityCount: recentActivity.length
   });
 
+  // Additional debug - check specific stat values
+  console.log('🔢 Dashboard Frontend: Individual stat values:', {
+    totalTranscriptions: stats.totalTranscriptions,
+    completedTranscriptions: stats.completedTranscriptions,
+    processingTranscriptions: stats.processingTranscriptions,
+    totalMinutes: stats.totalMinutes,
+    storageUsed: stats.storageUsed,
+    storagePercentage: stats.storagePercentage
+  });
+
   return (
     <>
       <Head>
@@ -175,12 +262,41 @@ export default function Dashboard() {
         <div className={`p-6 overflow-auto transition-all duration-300 ${sidebarCollapsed ? 'ml-16' : 'lg:ml-64'}`}>
           {/* Header */}
           <div className="mb-8">
-            <h1 className="text-2xl font-bold gradient-text mb-2">
-              Welcome, {user?.name?.split(' ')[0] || 'User'}
-            </h1>
-            <p className="text-white/60">
-              <T>Here's what's happening with your transcriptions</T>
-            </p>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h1 className="text-2xl font-bold gradient-text mb-2">
+                  Welcome, {user?.name?.split(' ')[0] || 'User'}
+                </h1>
+                <p className="text-white/60">
+                  <T>Here's what's happening with your transcriptions</T>
+                </p>
+              </div>
+              <div className="flex items-center space-x-3">
+                {lastUpdated && (
+                  <span className="text-xs text-white/40">
+                    Last updated: {lastUpdated.toLocaleTimeString()}
+                  </span>
+                )}
+                <button
+                  onClick={toggleAutoRefresh}
+                  className={`px-3 py-1 rounded-lg text-xs transition-colors ${
+                    autoRefresh 
+                      ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
+                      : 'bg-gray-500/20 text-gray-400 border border-gray-500/30'
+                  }`}
+                >
+                  Auto-refresh {autoRefresh ? 'ON' : 'OFF'}
+                </button>
+                <button
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                  className="px-3 py-1 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 rounded-lg text-blue-400 text-xs transition-colors flex items-center space-x-1"
+                >
+                  <FiActivity className={`w-3 h-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Analytics Cards */}
@@ -194,7 +310,7 @@ export default function Dashboard() {
                 <FiTrendingUp className="w-4 h-4 text-green-400" />
               </div>
               <div className="text-2xl font-bold text-white mb-1">
-                {stats.totalTranscriptions || 0}
+                {stats.totalTranscriptions !== undefined ? stats.totalTranscriptions : 0}
               </div>
               <div className="text-sm text-white/60">
                 <T>Total Transcriptions</T>
@@ -266,12 +382,21 @@ export default function Dashboard() {
                 <h2 className="text-lg font-semibold text-white">
                   <T>Recent Files</T>
                 </h2>
-                <button 
-                  onClick={() => router.push('/files/recent')}
-                  className="text-white/60 hover:text-white transition-colors text-sm"
-                >
-                  <T>View All</T>
-                </button>
+                <div className="flex items-center space-x-2">
+                  <button 
+                    onClick={handleRefresh}
+                    className="text-white/40 hover:text-white/60 transition-colors"
+                    title="Refresh files"
+                  >
+                    <FiActivity className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  </button>
+                  <button 
+                    onClick={() => router.push('/files/recent')}
+                    className="text-white/60 hover:text-white transition-colors text-sm"
+                  >
+                    <T>View All</T>
+                  </button>
+                </div>
               </div>
               
               <div className="space-y-4">
@@ -306,28 +431,44 @@ export default function Dashboard() {
                 <h2 className="text-lg font-semibold text-white">
                   <T>Recent Activity</T>
                 </h2>
-                <FiActivity className="w-5 h-5 text-white/40" />
+                <div className="flex items-center space-x-2">
+                  <button 
+                    onClick={handleRefresh}
+                    className="text-white/40 hover:text-white/60 transition-colors"
+                    title="Refresh activity"
+                  >
+                    <FiActivity className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  </button>
+                  {autoRefresh && (
+                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" title="Auto-refresh active"></div>
+                  )}
+                </div>
               </div>
               
               <div className="space-y-4">
                 {recentActivity.length > 0 ? (
-                  recentActivity.map((activity, index) => (
-                    <div key={index} className="flex items-start space-x-3">
-                      <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 flex-shrink-0"></div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-white/80 truncate">{activity.name}</p>
-                        <p className="text-xs text-white/60">{activity.type}</p>
-                        <p className="text-xs text-white/40">
-                          {new Date(activity.createdAt).toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </p>
+                  recentActivity.map((activity, index) => {
+                    const isRecent = isRecentActivity(activity.timestamp);
+                    return (
+                      <div key={activity.id || index} className="flex items-start space-x-3">
+                        <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${
+                          isRecent ? 'bg-green-400 animate-pulse' : 'bg-blue-400'
+                        }`}></div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-white/80 truncate">{activity.description}</p>
+                          <p className="text-xs text-white/60">{activity.type}</p>
+                          <p className="text-xs text-white/40">
+                            {activity.timestamp ? timeAgo(activity.timestamp) : 'Unknown time'}
+                          </p>
+                          {isRecent && (
+                            <span className="inline-block px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded-full mt-1">
+                              New
+                            </span>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 ) : (
                   <div className="text-center py-8">
                     <FiActivity className="w-12 h-12 text-white/20 mx-auto mb-3" />

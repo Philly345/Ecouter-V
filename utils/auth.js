@@ -62,6 +62,29 @@ export function clearTokenCookie(res) {
   res.setHeader('Set-Cookie', 'token=; HttpOnly; Path=/; Max-Age=0; SameSite=Strict');
 }
 
+export async function validateUserAccess(req, fileUserId) {
+  try {
+    const token = getTokenFromRequest(req);
+    if (!token) {
+      return { valid: false, error: 'No token provided' };
+    }
+    
+    const decoded = verifyTokenString(token);
+    if (!decoded || !decoded.userId) {
+      return { valid: false, error: 'Invalid token' };
+    }
+    
+    // Ensure the requesting user owns the resource
+    if (fileUserId && fileUserId !== decoded.userId) {
+      return { valid: false, error: 'Access denied' };
+    }
+    
+    return { valid: true, userId: decoded.userId };
+  } catch (error) {
+    return { valid: false, error: 'Token validation failed' };
+  }
+}
+
 export function getAuthHeader() {
   // For client-side requests
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;

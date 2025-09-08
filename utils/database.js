@@ -9,22 +9,6 @@ const USERS_COLLECTION = 'users';
 
 // Users database
 export const usersDB = {
-  // Get all users (for admin purposes, use with caution)
-  getAll: async () => {
-    if (!isServerless) {
-      // In development, you might want to keep file-based fallback
-      return [];
-    }
-    
-    try {
-      const { db } = await connectDB();
-      return await db.collection(USERS_COLLECTION).find({}).toArray();
-    } catch (error) {
-      console.error('Error fetching users from MongoDB:', error);
-      return [];
-    }
-  },
-
   // Find user by email
   findByEmail: async (email) => {
     if (!isServerless) {
@@ -109,21 +93,6 @@ const FILES_COLLECTION = 'files';
 
 // Files database
 export const filesDB = {
-  // Get all files (use with caution)
-  getAll: async () => {
-    if (!isServerless) {
-      return [];
-    }
-    
-    try {
-      const { db } = await connectDB();
-      return await db.collection(FILES_COLLECTION).find({}).toArray();
-    } catch (error) {
-      console.error('Error fetching files from MongoDB:', error);
-      return [];
-    }
-  },
-
   // Find files by user ID
   findByUserId: async (userId) => {
     if (!isServerless) {

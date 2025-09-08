@@ -23,17 +23,23 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
       // Get only completed files
       const userId = user.id || user._id.toString();
-      let files = filesDB.findByUserId(userId);
       
-      // Filter for completed files
-      files = files.filter(file => file.status === 'completed');
+      // Use MongoDB directly instead of filesDB utility for consistency
+      const files = await db.collection('files')
+        .find({ userId, status: 'completed' })
+        .sort({ createdAt: -1 })
+        .toArray();
       
-      // Sort by creation date (newest first)
-      files.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      // Convert ObjectId to string for frontend
+      const formattedFiles = files.map(file => ({
+        ...file,
+        id: file._id.toString(),
+        _id: undefined
+      }));
       
       return res.status(200).json({ 
-        files,
-        total: files.length 
+        files: formattedFiles,
+        total: formattedFiles.length 
       });
     }
 

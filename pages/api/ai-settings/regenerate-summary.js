@@ -47,9 +47,9 @@ export default async function handler(req, res) {
     }
 
     // Check if API key is available
-    if (!process.env.GEMINI_API_KEY) {
-      console.error('GEMINI_API_KEY is not configured');
-      return res.status(500).json({ error: 'AI service not configured. Please set up GEMINI_API_KEY.' });
+    if (!process.env.OPENAI_API_KEY) {
+      console.error('OPENAI_API_KEY is not configured');
+      return res.status(500).json({ error: 'AI service not configured. Please set up OPENAI_API_KEY.' });
     }
 
     // Generate new summary
@@ -110,45 +110,47 @@ async function generateSummary(text) {
     
     console.log(`Processing transcript of ${truncatedText.length} characters`);
     
-    // Using the exact same prompt format as the working TypeScript code
+    // Using optimized prompt format for OpenAI
     const summaryPrompt = `Analyze this transcript:\n\n"${truncatedText}"\n\nProvide:\n1. SUMMARY: A 2-3 sentence summary.\n2. TOPICS: 3-5 main topics, comma-separated.\n3. INSIGHTS: 1-2 key insights.\n\nFormat your response exactly like this:\nSUMMARY: [Your summary]\nTOPICS: [topic1, topic2]\nINSIGHTS: [Your insights]`;
     
-    // Using the same model as the working code (gemini-1.5-flash)
-    console.log('Making API request to Gemini...');
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, {
+    // ⚠️ WARNING: Using openai/gpt-oss-20b:free model only - changing this model could incur charges!
+    console.log('Making API request to OpenAI...');
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+        'HTTP-Referer': 'https://ecouter.systems',
+        'X-Title': 'Ecouter AI Summary System'
       },
       body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: summaryPrompt
-          }]
-        }]
+        model: "openai/gpt-oss-20b:free", // ⚠️ FREE MODEL ONLY - DO NOT CHANGE
+        messages: [{ role: "user", content: summaryPrompt }],
+        temperature: 0.7,
+        max_tokens: 1024
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Gemini API error:', response.status, response.statusText);
+      console.error('OpenAI API error:', response.status, response.statusText);
       console.error('Error response:', errorText);
       
       if (response.status === 401) {
-        throw new Error('Invalid API key - please check GEMINI_API_KEY configuration');
+        throw new Error('Invalid API key - please check OPENAI_API_KEY configuration');
       } else if (response.status === 403) {
         throw new Error('API access forbidden - please check API key permissions');
       } else if (response.status === 429) {
         throw new Error('API rate limit exceeded - please try again later');
       } else {
-        throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
+        throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
       }
     }
 
     const data = await response.json();
     console.log('Received API response:', JSON.stringify(data, null, 2));
     
-    const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const generatedText = data.choices?.[0]?.message?.content || '';
     
     if (!generatedText) {
       console.error('No generated text in API response');
@@ -184,28 +186,31 @@ async function generateSummary(text) {
 
 async function generateSummaryRetry(text) {
   try {
-    // Simplified retry using the same working pattern
+    // Simplified retry using OpenAI free model
     const summaryPrompt = `Analyze this transcript:\n\n"${text}"\n\nProvide:\n1. SUMMARY: A 2-3 sentence summary.\n2. TOPICS: 3-5 main topics, comma-separated.\n3. INSIGHTS: 1-2 key insights.\n\nFormat your response exactly like this:\nSUMMARY: [Your summary]\nTOPICS: [topic1, topic2]\nINSIGHTS: [Your insights]`;
     
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, {
+    // ⚠️ WARNING: Using openai/gpt-oss-20b:free model only - changing this model could incur charges!
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+        'HTTP-Referer': 'https://ecouter.systems',
+        'X-Title': 'Ecouter AI Summary Retry'
       },
       body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: summaryPrompt
-          }]
-        }]
+        model: "openai/gpt-oss-20b:free", // ⚠️ FREE MODEL ONLY - DO NOT CHANGE
+        messages: [{ role: "user", content: summaryPrompt }],
+        temperature: 0.7,
+        max_tokens: 1024
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Gemini API retry error:', response.status, response.statusText);
+      console.error('OpenAI API retry error:', response.status, response.statusText);
       console.error('Error response:', errorText);
-      throw new Error(`Gemini API retry error: ${response.status}`);
+      throw new Error(`OpenAI API retry error: ${response.status}`);
     }
 
     const data = await response.json();

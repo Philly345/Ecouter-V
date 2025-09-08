@@ -44,8 +44,15 @@ export const AuthProvider = ({ children }) => {
           return;
         }
         
-        // Token is valid, set user from payload
-        setUser({ userId: payload.userId, email: payload.email });
+        // Token is valid, only set minimal user data if we don't already have a full user object
+        if (!user || !user.name) {
+          setUser({ 
+            userId: payload.userId, 
+            id: payload.userId, // For backward compatibility
+            email: payload.email,
+            name: payload.name 
+          });
+        }
         setToken(storedToken);
         setAuthChecked(true);
         
@@ -64,7 +71,7 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     checkAuth();
@@ -103,9 +110,17 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem('token', data.token);
       }
       setToken(data.token); // Set token in state
-      setUser(data.user);
+      
+      // Ensure user object has both id and userId for compatibility
+      const userData = {
+        ...data.user,
+        userId: data.user.id, // Set userId from id for JWT/API compatibility
+        id: data.user.id      // Keep id as well for component compatibility
+      };
+      
+      setUser(userData);
       setAuthChecked(true);
-      console.log('✅ Login successful, user set:', data.user);
+      console.log('✅ Login successful, user set:', userData);
       return { success: true };
     } else {
       console.log('❌ Login failed:', data.error);
@@ -137,9 +152,14 @@ export const AuthProvider = ({ children }) => {
       // Clear token immediately to prevent any further API calls
       if (typeof window !== 'undefined') {
         localStorage.removeItem('token');
+        // Clear all other potential cached data
+        localStorage.removeItem('user');
+        localStorage.removeItem('dashboard-cache');
+        localStorage.removeItem('files-cache');
       }
       setToken(null);
       setUser(null);
+      setAuthChecked(true);
       
       // Redirect immediately before making the API call
       router.push('/login');

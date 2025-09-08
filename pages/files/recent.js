@@ -32,6 +32,12 @@ export default function RecentFiles() {
   const fetchFiles = async () => {
     try {
       const token = localStorage.getItem('token');
+      
+      if (!token) {
+        router.push('/login');
+        return;
+      }
+      
       // Add filter parameter based on activeFilter
       let url = '/api/files?limit=20&offset=0';
       if (activeFilter !== 'all') {
@@ -43,6 +49,13 @@ export default function RecentFiles() {
           'Authorization': `Bearer ${token}`,
         },
       });
+
+      if (response.status === 401) {
+        // Token is invalid, redirect to login
+        localStorage.removeItem('token');
+        router.push('/login');
+        return;
+      }
 
       if (response.ok) {
         const data = await response.json();

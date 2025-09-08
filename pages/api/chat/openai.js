@@ -16,7 +16,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Message and transcript are required' });
     }
 
-    // Initialize OpenAI API
+    // Check for OpenAI API key
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
       console.error('OPENAI_API_KEY not found in environment variables');
@@ -75,14 +75,14 @@ Provide a helpful and informative response:`;
     }
 
     const data = await response.json();
-    const text = data.choices?.[0]?.message?.content || '';
+    const generatedText = data.choices?.[0]?.message?.content || '';
 
-    if (!text) {
+    if (!generatedText) {
       throw new Error('No response generated from OpenAI');
     }
 
     return res.status(200).json({
-      response: text,
+      response: generatedText,
       timestamp: new Date().toISOString()
     });
 

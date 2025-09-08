@@ -520,7 +520,7 @@ async function generateAISummary(text, targetLanguage, apiManager) {
     const finalAPI = await apiManager.getCurrentAPI();
     
     // Generate summary based on available API
-    if (['gemini', 'deepseek'].includes(finalAPI)) {
+    if (['openai', 'deepseek'].includes(finalAPI)) {
       return await generateSummaryWithAI(text, targetLanguage, finalAPI);
     } else {
       // Fallback to original summary generation
@@ -554,62 +554,141 @@ async function generateSummaryWithAI(text, targetLanguage, apiName) {
   
   const summaryPrompt = `Analyze this transcript and respond in ${languageName}:\n\n"${truncatedText}"\n\nProvide your response in ${languageName} with:\n1. SUMMARY: A 2-3 sentence summary.\n2. TOPICS: 3-5 main topics, comma-separated.\n3. INSIGHTS: 1-2 key insights.\n\nFormat your response exactly like this:\nSUMMARY: [Your summary]\nTOPICS: [topic1, topic2]\nINSIGHTS: [Your insights]`;
   
-  if (apiName === 'gemini') {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          contents: [{ parts: [{ text: summaryPrompt }] }],
-          generationConfig: {
-            temperature: 0.7,
-            topK: 40,
-            topP: 0.95,
-            maxOutputTokens: 1024,
-          }
-        })
+  // 🎯 SMART AI FALLBACK SYSTEM: OpenAI (free) → Gemini → DeepSeek
+  try {
+    console.log('🚀 Trying OpenAI first (free model)...');
+    return await generateWithOpenAI(summaryPrompt);
+  } catch (openaiError) {
+    console.log('⚠️ OpenAI failed, falling back to Gemini:', openaiError.message);
+    try {
+      return await generateWithGemini(summaryPrompt);
+    } catch (geminiError) {
+      console.log('⚠️ Gemini failed, falling back to DeepSeek:', geminiError.message);
+      try {
+        return await generateWithDeepSeek(summaryPrompt);
+      } catch (deepseekError) {
+        console.log('❌ All AI services failed');
+        throw new Error('All AI services are currently unavailable');
       }
-    );
-
-    if (!response.ok) {
-      throw new Error(`Gemini API error: ${response.status}`);
     }
+  }
+}
 
-    const data = await response.json();
-    const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    
-    return parseSummaryResponse(generatedText);
-    
-  } else if (apiName === 'deepseek') {
-    const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`,
-        'Content-Type': 'application/json'
+async function generateWithOpenAI(summaryPrompt) {
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error('OpenAI API key not configured');
+  }
+
+  // ⚠️ WARNING: Using openai/gpt-oss-20b:free model only - changing this model could incur charges!
+  const response = await fetch(
+    'https://openrouter.ai/api/v1/chat/completions',
+    {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+        "HTTP-Referer": "https://ecouter.systems",
+        "X-Title": "Ecouter Transcription System"
       },
-      body: JSON.stringify({
-        model: 'deepseek-chat',
-        messages: [{
-          role: 'user',
-          content: summaryPrompt
-        }],
+      body: JSON.stringify({ 
+        model: "openai/gpt-oss-20b:free", // ⚠️ FREE MODEL ONLY - DO NOT CHANGE
+        messages: [{ role: "user", content: summaryPrompt }],
         temperature: 0.7,
         max_tokens: 1024
       })
-    });
-
-    if (!response.ok) {
-      throw new Error(`DeepSeek API error: ${response.status}`);
     }
+  );
 
-    const data = await response.json();
-    const generatedText = data.choices?.[0]?.message?.content || '';
-    
-    return parseSummaryResponse(generatedText);
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
+  }
+
+  const data = await response.json();
+  const generatedText = data.choices?.[0]?.message?.content || '';
+  
+  if (!generatedText) {
+    throw new Error('Empty response from OpenAI');
   }
   
-  throw new Error(`Unsupported API for summary: ${apiName}`);
+  console.log('✅ OpenAI succeeded');
+  return parseSummaryResponse(generatedText);
+}
+
+async function generateWithGemini(summaryPrompt) {
+  if (!process.env.GEMINI_API_KEY) {
+    throw new Error('Gemini API key not configured');
+  }
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        contents: [{ parts: [{ text: summaryPrompt }] }],
+        generationConfig: {
+          temperature: 0.7,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 1024,
+        }
+      })
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
+  }
+
+  const data = await response.json();
+  const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  
+  if (!generatedText) {
+    throw new Error('Empty response from Gemini');
+  }
+  
+  console.log('✅ Gemini fallback succeeded');
+  return parseSummaryResponse(generatedText);
+}
+
+async function generateWithDeepSeek(summaryPrompt) {
+  if (!process.env.DEEPSEEK_API_KEY) {
+    throw new Error('DeepSeek API key not configured');
+  }
+
+  const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: 'deepseek-chat',
+      messages: [{
+        role: 'user',
+        content: summaryPrompt
+      }],
+      temperature: 0.7,
+      max_tokens: 1024
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`DeepSeek API error: ${response.status} - ${errorText}`);
+  }
+
+  const data = await response.json();
+  const generatedText = data.choices?.[0]?.message?.content || '';
+  
+  if (!generatedText) {
+    throw new Error('Empty response from DeepSeek');
+  }
+  
+  console.log('✅ DeepSeek fallback succeeded');
+  return parseSummaryResponse(generatedText);
 }
 
 function parseSummaryResponse(generatedText) {
@@ -924,99 +1003,96 @@ async function generateSummary(text, targetLanguage = 'en') {
     
     console.log(`Generating AI summary in ${languageName}`);
     
-    // Try different models in order of preference
-    const models = [
-      'gemini-1.5-flash',
-      'gemini-1.5-pro',
-      'gemini-1.0-pro'
-    ];
+    // WARNING: Only use the FREE model to avoid charges!
+    // Using only openai/gpt-oss-20b:free - DO NOT change to paid models
+    const model = 'openai/gpt-oss-20b:free'; // FREE MODEL ONLY - DO NOT CHANGE
     
-    for (const model of models) {
-      console.log(`🔄 Trying model: ${model}`);
-      
-      // Add retry logic for Gemini API overload
-      let attempts = 0;
-      const maxAttempts = 3; // Reduced for faster fallback
-      const baseDelay = 2000; // Reduced delay
-      
-      while (attempts < maxAttempts) {
-        try {
-          const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ 
-                contents: [{ parts: [{ text: summaryPrompt }] }],
-                generationConfig: {
-                  temperature: 0.7,
-                  topK: 40,
-                  topP: 0.95,
-                  maxOutputTokens: 1024,
-                }
-              })
-            }
-          );
-          
-          if (response.status === 503) {
-            attempts++;
-            if (attempts < maxAttempts) {
-              const delay = baseDelay * Math.pow(2, attempts - 1);
-              console.log(`Gemini API (${model}) overloaded, retrying in ${delay}ms (attempt ${attempts}/${maxAttempts})`);
-              await new Promise(resolve => setTimeout(resolve, delay));
-              continue;
-            } else {
-              console.log(`Model ${model} overloaded after all retries, trying next model...`);
-              break; // Try next model
-            }
+    console.log(`🔄 Using FREE OpenAI model: ${model}`);
+    
+    // Single attempt with free model only - no fallbacks to paid models
+    let attempts = 0;
+    const maxAttempts = 3;
+    const baseDelay = 2000;
+    
+    while (attempts < maxAttempts) {
+      try {
+        const response = await fetch(
+          'https://openrouter.ai/api/v1/chat/completions',
+          {
+            method: "POST",
+            headers: { 
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+              "HTTP-Referer": "https://ecouter.systems",
+              "X-Title": "Ecouter Transcription System"
+            },
+            body: JSON.stringify({ 
+              model: model, // FREE MODEL ONLY - DO NOT CHANGE
+              messages: [{ role: "user", content: summaryPrompt }],
+              temperature: 0.7,
+              max_tokens: 1024
+            })
           }
-          
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error(`Gemini API (${model}) error: ${response.status} - ${errorText}`);
-            if (attempts < maxAttempts - 1) {
-              attempts++;
-              const delay = baseDelay * Math.pow(2, attempts - 1);
-              console.log(`Retrying ${model} in ${delay}ms (attempt ${attempts}/${maxAttempts})`);
-              await new Promise(resolve => setTimeout(resolve, delay));
-              continue;
-            } else {
-              console.log(`Model ${model} failed after all retries, trying next model...`);
-              break; // Try next model
-            }
-          }
-          
-          const data = await response.json();
-          const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-          
-          const summaryMatch = generatedText.match(/SUMMARY:\s*(.+?)(?=TOPICS:|$)/s);
-          const topicsMatch = generatedText.match(/TOPICS:\s*(.+?)(?=INSIGHTS:|$)/s);
-          const insightsMatch = generatedText.match(/INSIGHTS:\s*(.+?)$/s);
-          
-          console.log(`✅ Successfully generated summary using ${model}`);
-          
-          return {
-            summary: summaryMatch ? summaryMatch[1].trim() : 'Summary not available.',
-            topics: topicsMatch ? topicsMatch[1].trim().split(",").map(t => t.trim()).filter(Boolean) : [],
-            topic: topicsMatch ? topicsMatch[1].trim().split(",")[0].trim() : 'General',
-            insights: insightsMatch ? insightsMatch[1].trim() : 'No insights generated.'
-          };
-          
-        } catch (error) {
+        );
+        
+        if (response.status === 503 || response.status === 429) {
           attempts++;
-          if (attempts >= maxAttempts) {
-            console.log(`Model ${model} error after all retries, trying next model...`);
-            break; // Try next model
+          if (attempts < maxAttempts) {
+            const delay = baseDelay * Math.pow(2, attempts - 1);
+            console.log(`OpenAI API (${model}) overloaded, retrying in ${delay}ms (attempt ${attempts}/${maxAttempts})`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            continue;
+          } else {
+            console.log(`Free model ${model} overloaded after all retries, using fallback summary...`);
+            break; // Exit retry loop and use fallback
           }
-          const delay = baseDelay * Math.pow(2, attempts - 1);
-          console.log(`Gemini API (${model}) error, retrying in ${delay}ms (attempt ${attempts}/${maxAttempts}):`, error.message);
-          await new Promise(resolve => setTimeout(resolve, delay));
         }
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`OpenAI API (${model}) error: ${response.status} - ${errorText}`);
+          if (attempts < maxAttempts - 1) {
+            attempts++;
+            const delay = baseDelay * Math.pow(2, attempts - 1);
+            console.log(`Retrying ${model} in ${delay}ms (attempt ${attempts}/${maxAttempts})`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            continue;
+          } else {
+            console.log(`Free model ${model} failed after all retries, using fallback summary...`);
+            break; // Exit retry loop and use fallback
+          }
+        }
+        
+        const data = await response.json();
+        const generatedText = data.choices?.[0]?.message?.content || '';
+        
+        const summaryMatch = generatedText.match(/SUMMARY:\s*(.+?)(?=TOPICS:|$)/s);
+        const topicsMatch = generatedText.match(/TOPICS:\s*(.+?)(?=INSIGHTS:|$)/s);
+        const insightsMatch = generatedText.match(/INSIGHTS:\s*(.+?)$/s);
+        
+        console.log(`✅ Successfully generated summary using FREE model ${model}`);
+        
+        return {
+          summary: summaryMatch ? summaryMatch[1].trim() : 'Summary not available.',
+          topics: topicsMatch ? topicsMatch[1].trim().split(",").map(t => t.trim()).filter(Boolean) : [],
+          topic: topicsMatch ? topicsMatch[1].trim().split(",")[0].trim() : 'General',
+          insights: insightsMatch ? insightsMatch[1].trim() : 'No insights generated.'
+        };
+        
+      } catch (error) {
+        attempts++;
+        if (attempts >= maxAttempts) {
+          console.log(`Free model ${model} error after all retries, using fallback summary...`);
+          break; // Exit retry loop and use fallback
+        }
+        const delay = baseDelay * Math.pow(2, attempts - 1);
+        console.log(`OpenAI API (${model}) error, retrying in ${delay}ms (attempt ${attempts}/${maxAttempts}):`, error.message);
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
     
-    // If all models failed, use fallback
-    console.log('All Gemini models failed, using improved fallback summary');
+    // If free model failed, use fallback
+    console.log('Free OpenAI model failed, using improved fallback summary');
     return generateFallbackSummary(truncatedText, languageName);
     
   } catch (error) {
@@ -1025,7 +1101,7 @@ async function generateSummary(text, targetLanguage = 'en') {
   }
 }
 
-// Fallback summary generation when Gemini API is unavailable
+// Fallback summary generation when OpenAI API is unavailable
 function generateFallbackSummary(text, languageName) {
   try {
     console.log('🔄 Using intelligent fallback summary generation');

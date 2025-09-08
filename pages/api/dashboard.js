@@ -132,17 +132,52 @@ export default async function handler(req, res) {
       
       console.log('🎆 Dashboard API: Final stats being returned:', dashboardStats);
 
-      // Create recent activity from recent files
-      const recentActivity = recentFiles.slice(0, 3).map(file => ({
-        id: file._id,
-        type: getActivityType(file.status),
-        description: `${file.status === 'completed' ? 'Completed' : file.status === 'processing' ? 'Processing' : 'Error in'} transcription of ${file.filename}`,
-        timestamp: file.createdAt || file.updatedAt
-      }));
+      // Create enhanced recent activity with more details
+      const recentActivity = recentFiles.slice(0, 5).map(file => {
+        const now = new Date();
+        const fileTime = new Date(file.updatedAt || file.createdAt);
+        const timeDiff = now - fileTime;
+        const isRecent = timeDiff < 300000; // 5 minutes
+        
+        let activityDescription = '';
+        let activityType = '';
+        
+        switch (file.status) {
+          case 'completed':
+            activityDescription = `Successfully transcribed "${file.filename}"`;
+            activityType = 'Transcription Complete';
+            break;
+          case 'processing':
+            activityDescription = `Processing "${file.filename}"`;
+            activityType = 'Transcription in Progress';
+            break;
+          case 'error':
+            activityDescription = `Failed to transcribe "${file.filename}"`;
+            activityType = 'Transcription Error';
+            break;
+          default:
+            activityDescription = `Uploaded "${file.filename}"`;
+            activityType = 'File Upload';
+        }
+        
+        return {
+          id: file._id.toString(),
+          type: activityType,
+          description: activityDescription,
+          timestamp: file.updatedAt || file.createdAt,
+          isRecent,
+          fileId: file._id.toString(),
+          fileName: file.filename,
+          status: file.status,
+          duration: file.duration,
+          size: file.size
+        };
+      });
 
       console.log('✅ Dashboard API: Sending successful response');
       res.status(200).json({
         success: true,
+        timestamp: new Date().toISOString(),
         user: {
           id: user.id,
           name: user.name,

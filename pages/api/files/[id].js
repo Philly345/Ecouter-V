@@ -40,9 +40,12 @@ export default async function handler(req, res) {
       });
     } else if (req.method === 'POST') {
       // Handle POST actions like regenerating summary
-      const file = filesDB.findById(id);
+      const file = await db.collection('files').findOne({ 
+        _id: new ObjectId(id) 
+      });
       
-      if (!file || file.userId !== user.id) {
+      const userId = user.id || user._id.toString();
+      if (!file || file.userId !== userId) {
         return res.status(404).json({ error: 'File not found' });
       }
       
@@ -54,17 +57,29 @@ export default async function handler(req, res) {
 
         const summary = await generateSummary(file.transcript);
         
-        // Update file with new summary
-        filesDB.update(file.id, {
-          summary: summary.summary,
-          topic: summary.topic,
-        });
+        // Update file with new summary using MongoDB
+        await db.collection('files').updateOne(
+          { _id: new ObjectId(id) },
+          { 
+            $set: {
+              summary: summary.summary,
+              topic: summary.topic,
+              updatedAt: new Date()
+            }
+          }
+        );
         
-        const updatedFile = filesDB.findById(file.id);
+        const updatedFile = await db.collection('files').findOne({ 
+          _id: new ObjectId(id) 
+        });
         
         res.status(200).json({
           success: true,
-          file: updatedFile,
+          file: {
+            ...updatedFile,
+            id: updatedFile._id.toString(),
+            _id: undefined
+          },
           message: 'Summary regenerated successfully',
         });
       } else {

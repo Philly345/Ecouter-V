@@ -43,16 +43,16 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'File has no transcript to chat about' });
     }
 
-    // Generate AI response
-    try {
-      // Verify API key is available
-      if (!process.env.GEMINI_API_KEY) {
-        console.error('GEMINI_API_KEY is not defined in environment variables');
-        return res.status(500).json({ 
-          error: 'API key configuration is missing',
-          details: 'Please check your .env.local file and ensure GEMINI_API_KEY is set'
-        });
-      }
+      // Generate AI response with smart fallback
+      try {
+        // Verify at least one API key is available
+        if (!process.env.OPENAI_API_KEY && !process.env.GEMINI_API_KEY) {
+          console.error('No AI API keys configured');
+          return res.status(500).json({ 
+            error: 'AI service configuration is missing',
+            details: 'Please check your .env.local file and ensure OPENAI_API_KEY or GEMINI_API_KEY is set'
+          });
+        }
       
       // Log some info about the request
       console.log(`Processing chat request for file ${file.id}, message length: ${message.length}`);
@@ -117,7 +117,7 @@ async function generateChatResponse(transcript, userMessage, conversation) {
       ? `\n\nPrevious conversation:\n${messageHistory.join('\n')}` 
       : '';
     
-        const chatPrompt = `You are a helpful AI assistant analyzing an audio transcript. Answer the user's question based on the transcript content.
+    const chatPrompt = `You are a helpful AI assistant analyzing an audio transcript. Answer the user's question based on the transcript content.
 
 TRANSCRIPT:
 """
@@ -133,42 +133,99 @@ INSTRUCTIONS:
 User Question: ${userMessage}
 
 Answer:`;
-    
-    // Updated payload format for Gemini API to match working TypeScript code
-    const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          contents: [{ 
-            parts: [{ 
-              text: chatPrompt 
-            }] 
-          }]
-        })
+
+    // 🎯 SMART AI FALLBACK SYSTEM: OpenAI (free) → Gemini → DeepSeek
+    try {
+      console.log('🚀 Chat: Trying OpenAI first (free model)...');
+      return await generateChatWithOpenAI(chatPrompt);
+    } catch (openaiError) {
+      console.log('⚠️ Chat: OpenAI failed, falling back to Gemini:', openaiError.message);
+      try {
+        return await generateChatWithGemini(chatPrompt);
+      } catch (geminiError) {
+        console.log('⚠️ Chat: Gemini failed, using fallback response:', geminiError.message);
+        return "I'm sorry, I couldn't generate a response due to AI service issues. Please try asking something else about this audio file.";
       }
-    );
-
-    // Process the response
-    if (!geminiResponse.ok) {
-      const errorText = await geminiResponse.text();
-      console.error("Gemini API error:", geminiResponse.status, geminiResponse.statusText);
-      console.error("Error response:", errorText);
-      throw new Error(`Gemini API error: ${geminiResponse.status}`);
     }
 
-    // Parse the response
-    const geminiData = await geminiResponse.json();
-    console.log("Gemini API response received");
-    
-    // Extract the generated text using the correct response structure
-    const generatedText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    
-    if (!generatedText) {
-      console.error("No text in Gemini response");
-      return "I'm sorry, I couldn't generate a response. Please try asking something else about this audio file.";
+  } catch (error) {
+    console.error('Chat generation error:', error);
+    return "I'm sorry, I couldn't process your question properly. Please try asking something else about the audio.";
+  }
+}
+
+async function generateChatWithOpenAI(chatPrompt) {
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error('OpenAI API key not configured');
+  }
+
+  // ⚠️ WARNING: Using openai/gpt-oss-20b:free model only - changing this model could incur charges!
+  const response = await fetch(
+    'https://openrouter.ai/api/v1/chat/completions',
+    {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+        "HTTP-Referer": "https://ecouter.systems",
+        "X-Title": "Ecouter Chat System"
+      },
+      body: JSON.stringify({ 
+        model: "openai/gpt-oss-20b:free", // ⚠️ FREE MODEL ONLY - DO NOT CHANGE
+        messages: [{ role: "user", content: chatPrompt }],
+        temperature: 0.7,
+        max_tokens: 1024
+      })
     }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
+  }
+
+  const data = await response.json();
+  const generatedText = data.choices?.[0]?.message?.content || '';
+  
+  if (!generatedText) {
+    throw new Error('Empty response from OpenAI');
+  }
+
+  console.log('✅ Chat: OpenAI succeeded');
+  return generatedText.replace(/^Answer:/, '').trim();
+}
+
+async function generateChatWithGemini(chatPrompt) {
+  if (!process.env.GEMINI_API_KEY) {
+    throw new Error('Gemini API key not configured');
+  }
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        contents: [{ parts: [{ text: chatPrompt }] }]
+      })
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
+  }
+
+  const data = await response.json();
+  const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  
+  if (!generatedText) {
+    throw new Error('Empty response from Gemini');
+  }
+
+  console.log('✅ Chat: Gemini fallback succeeded');
+  return generatedText.replace(/^Answer:/, '').trim();
+}
     
     // Clean up the response text
     let responseText = generatedText.replace(/^Answer:/, '').trim();

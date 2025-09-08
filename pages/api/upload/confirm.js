@@ -107,7 +107,7 @@ async function processTranscription(fileId, fileUrl, settings) {
     // Check environment variables
     const missingVars = [];
     if (!process.env.ASSEMBLYAI_API_KEY) missingVars.push('ASSEMBLYAI_API_KEY');
-    if (!process.env.GEMINI_API_KEY) missingVars.push('GEMINI_API_KEY');
+    if (!process.env.OPENAI_API_KEY) missingVars.push('OPENAI_API_KEY');
     if (missingVars.length > 0) {
       console.error('❌ Missing environment variables:', missingVars);
       await db.collection('files').updateOne(
@@ -339,99 +339,96 @@ async function generateSummary(text, targetLanguage = 'en') {
     const summaryPrompt = `Analyze this transcript and respond in ${languageName}:\n\n"${truncatedText}"\n\nProvide your response in ${languageName} with:\n1. SUMMARY: A 2-3 sentence summary.\n2. TOPICS: 3-5 main topics, comma-separated.\n3. INSIGHTS: 1-2 key insights.\n\nFormat your response exactly like this:\nSUMMARY: [Your summary]\nTOPICS: [topic1, topic2]\nINSIGHTS: [Your insights]`;
     console.log(`[DEBUG] Generating AI summary in ${languageName}`);
     
-    // Try different models in order of preference
-    const models = [
-      'gemini-1.5-flash',
-      'gemini-1.5-pro',
-      'gemini-1.0-pro'
-    ];
+    // WARNING: Only use the FREE model to avoid charges!
+    // Using only openai/gpt-oss-20b:free - DO NOT change to paid models
+    const model = 'openai/gpt-oss-20b:free'; // FREE MODEL ONLY - DO NOT CHANGE
     
-    for (const model of models) {
-      console.log(`[DEBUG] Trying model: ${model}`);
-      
-      // Add retry logic for Gemini API overload
-      let attempts = 0;
-      const maxAttempts = 3; // Reduced for faster fallback
-      const baseDelay = 2000; // Reduced delay
-      
-      while (attempts < maxAttempts) {
-        try {
-          const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ 
-                contents: [{ parts: [{ text: summaryPrompt }] }],
-                generationConfig: {
-                  temperature: 0.7,
-                  topK: 40,
-                  topP: 0.95,
-                  maxOutputTokens: 1024,
-                }
-              })
-            }
-          );
-          
-          if (response.status === 503) {
-            attempts++;
-            if (attempts < maxAttempts) {
-              const delay = baseDelay * Math.pow(2, attempts - 1);
-              console.log(`[DEBUG] Gemini API (${model}) overloaded, retrying in ${delay}ms (attempt ${attempts}/${maxAttempts})`);
-              await new Promise(resolve => setTimeout(resolve, delay));
-              continue;
-            } else {
-              console.log(`[DEBUG] Model ${model} overloaded after all retries, trying next model...`);
-              break; // Try next model
-            }
+    console.log(`[DEBUG] Using FREE OpenAI model: ${model}`);
+    
+    // Single attempt with free model only - no fallbacks to paid models
+    let attempts = 0;
+    const maxAttempts = 3;
+    const baseDelay = 2000;
+    
+    while (attempts < maxAttempts) {
+      try {
+        const response = await fetch(
+          'https://openrouter.ai/api/v1/chat/completions',
+          {
+            method: "POST",
+            headers: { 
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+              "HTTP-Referer": "https://ecouter.systems",
+              "X-Title": "Ecouter Transcription System"
+            },
+            body: JSON.stringify({ 
+              model: model, // FREE MODEL ONLY - DO NOT CHANGE
+              messages: [{ role: "user", content: summaryPrompt }],
+              temperature: 0.7,
+              max_tokens: 1024
+            })
           }
-          
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error(`[DEBUG] Gemini API (${model}) error: ${response.status} - ${errorText}`);
-            if (attempts < maxAttempts - 1) {
-              attempts++;
-              const delay = baseDelay * Math.pow(2, attempts - 1);
-              console.log(`[DEBUG] Retrying ${model} in ${delay}ms (attempt ${attempts}/${maxAttempts})`);
-              await new Promise(resolve => setTimeout(resolve, delay));
-              continue;
-            } else {
-              console.log(`[DEBUG] Model ${model} failed after all retries, trying next model...`);
-              break; // Try next model
-            }
-          }
-          
-          const data = await response.json();
-          const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-          
-          const summaryMatch = generatedText.match(/SUMMARY:\s*(.+?)(?=TOPICS:|$)/s);
-          const topicsMatch = generatedText.match(/TOPICS:\s*(.+?)(?=INSIGHTS:|$)/s);
-          const insightsMatch = generatedText.match(/INSIGHTS:\s*(.+?)$/s);
-          
-          console.log(`[DEBUG] Successfully generated summary using ${model}`);
-          
-          return {
-            summary: summaryMatch ? summaryMatch[1].trim() : 'Summary not available.',
-            topics: topicsMatch ? topicsMatch[1].trim().split(",").map(t => t.trim()).filter(Boolean) : [],
-            topic: topicsMatch ? topicsMatch[1].trim().split(",")[0].trim() : 'General',
-            insights: insightsMatch ? insightsMatch[1].trim() : 'No insights generated.'
-          };
-          
-        } catch (error) {
+        );
+        
+        if (response.status === 503 || response.status === 429) {
           attempts++;
-          if (attempts >= maxAttempts) {
-            console.log(`[DEBUG] Model ${model} error after all retries, trying next model...`);
-            break; // Try next model
+          if (attempts < maxAttempts) {
+            const delay = baseDelay * Math.pow(2, attempts - 1);
+            console.log(`[DEBUG] OpenAI API (${model}) overloaded, retrying in ${delay}ms (attempt ${attempts}/${maxAttempts})`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            continue;
+          } else {
+            console.log(`[DEBUG] Free model ${model} overloaded after all retries, using fallback summary...`);
+            break; // Exit retry loop and use fallback
           }
-          const delay = baseDelay * Math.pow(2, attempts - 1);
-          console.log(`[DEBUG] Gemini API (${model}) error, retrying in ${delay}ms (attempt ${attempts}/${maxAttempts}):`, error.message);
-          await new Promise(resolve => setTimeout(resolve, delay));
         }
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`[DEBUG] OpenAI API (${model}) error: ${response.status} - ${errorText}`);
+          if (attempts < maxAttempts - 1) {
+            attempts++;
+            const delay = baseDelay * Math.pow(2, attempts - 1);
+            console.log(`[DEBUG] Retrying ${model} in ${delay}ms (attempt ${attempts}/${maxAttempts})`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            continue;
+          } else {
+            console.log(`[DEBUG] Free model ${model} failed after all retries, using fallback summary...`);
+            break; // Exit retry loop and use fallback
+          }
+        }
+        
+        const data = await response.json();
+        const generatedText = data.choices?.[0]?.message?.content || '';
+        
+        const summaryMatch = generatedText.match(/SUMMARY:\s*(.+?)(?=TOPICS:|$)/s);
+        const topicsMatch = generatedText.match(/TOPICS:\s*(.+?)(?=INSIGHTS:|$)/s);
+        const insightsMatch = generatedText.match(/INSIGHTS:\s*(.+?)$/s);
+        
+        console.log(`[DEBUG] Successfully generated summary using FREE model ${model}`);
+        
+        return {
+          summary: summaryMatch ? summaryMatch[1].trim() : 'Summary not available.',
+          topics: topicsMatch ? topicsMatch[1].trim().split(",").map(t => t.trim()).filter(Boolean) : [],
+          topic: topicsMatch ? topicsMatch[1].trim().split(",")[0].trim() : 'General',
+          insights: insightsMatch ? insightsMatch[1].trim() : 'No insights generated.'
+        };
+        
+      } catch (error) {
+        attempts++;
+        if (attempts >= maxAttempts) {
+          console.log(`[DEBUG] Free model ${model} error after all retries, using fallback summary...`);
+          break; // Exit retry loop and use fallback
+        }
+        const delay = baseDelay * Math.pow(2, attempts - 1);
+        console.log(`[DEBUG] OpenAI API (${model}) error, retrying in ${delay}ms (attempt ${attempts}/${maxAttempts}):`, error.message);
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
     
-    // If all models failed, use fallback
-    console.log('[DEBUG] All Gemini models failed, using improved fallback summary');
+    // If free model failed, use fallback
+    console.log('[DEBUG] Free OpenAI model failed, using improved fallback summary');
     return generateFallbackSummary(truncatedText, languageName);
     
   } catch (error) {
@@ -440,7 +437,7 @@ async function generateSummary(text, targetLanguage = 'en') {
   }
 }
 
-// Fallback summary generation when Gemini API is unavailable
+// Fallback summary generation when OpenAI API is unavailable
 function generateFallbackSummary(text, languageName) {
   try {
     console.log('🔄 Using intelligent fallback summary generation');
