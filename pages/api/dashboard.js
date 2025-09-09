@@ -115,6 +115,13 @@ export default async function handler(req, res) {
       console.log('📊 Dashboard API: Raw stats from DB:', stats);
       console.log('📁 Dashboard API: Recent files count:', recentFiles.length);
       
+      // Convert ObjectId to string for frontend compatibility
+      const formattedRecentFiles = recentFiles.map(file => ({
+        ...file,
+        id: file._id.toString(),
+        _id: undefined
+      }));
+      
       const storageUsed = stats.totalSize;
       const storageLimit = 1024 * 1024 * 1024; // 1GB in bytes
       const totalMinutes = Math.ceil(stats.totalDuration / 60);
@@ -133,7 +140,7 @@ export default async function handler(req, res) {
       console.log('🎆 Dashboard API: Final stats being returned:', dashboardStats);
 
       // Create enhanced recent activity with more details
-      const recentActivity = recentFiles.slice(0, 5).map(file => {
+      const recentActivity = formattedRecentFiles.slice(0, 5).map(file => {
         const now = new Date();
         const fileTime = new Date(file.updatedAt || file.createdAt);
         const timeDiff = now - fileTime;
@@ -144,30 +151,30 @@ export default async function handler(req, res) {
         
         switch (file.status) {
           case 'completed':
-            activityDescription = `Successfully transcribed "${file.filename}"`;
+            activityDescription = `Successfully transcribed "${file.filename || file.name}"`;
             activityType = 'Transcription Complete';
             break;
           case 'processing':
-            activityDescription = `Processing "${file.filename}"`;
+            activityDescription = `Processing "${file.filename || file.name}"`;
             activityType = 'Transcription in Progress';
             break;
           case 'error':
-            activityDescription = `Failed to transcribe "${file.filename}"`;
+            activityDescription = `Failed to transcribe "${file.filename || file.name}"`;
             activityType = 'Transcription Error';
             break;
           default:
-            activityDescription = `Uploaded "${file.filename}"`;
+            activityDescription = `Uploaded "${file.filename || file.name}"`;
             activityType = 'File Upload';
         }
         
         return {
-          id: file._id.toString(),
+          id: file.id,
           type: activityType,
           description: activityDescription,
           timestamp: file.updatedAt || file.createdAt,
           isRecent,
-          fileId: file._id.toString(),
-          fileName: file.filename,
+          fileId: file.id,
+          fileName: file.filename || file.name,
           status: file.status,
           duration: file.duration,
           size: file.size
@@ -185,7 +192,7 @@ export default async function handler(req, res) {
           avatar: user.avatar,
         },
         stats: dashboardStats,
-        recentFiles,
+        recentFiles: formattedRecentFiles,
         recentActivity
       });
     } catch (dbError) {

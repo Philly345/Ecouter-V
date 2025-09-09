@@ -160,9 +160,9 @@ export default function Storage() {
             <button
               onClick={handleRefresh}
               disabled={refreshing}
-              className="glow-button px-4 py-2 rounded-lg flex items-center space-x-2 disabled:opacity-50"
+              className="glow-button px-2 py-1 rounded-lg flex items-center space-x-1 disabled:opacity-50 text-sm"
             >
-              <FiRefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+              <FiRefreshCw className={`w-3 h-3 ${refreshing ? 'animate-spin' : ''}`} />
               <span>Refresh</span>
             </button>
           </div>

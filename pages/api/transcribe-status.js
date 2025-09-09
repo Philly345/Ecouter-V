@@ -3,7 +3,7 @@ dotenv.config({ path: '.env.local' });
 
 import { connectDB } from '../../lib/mongodb.js';
 import { ObjectId } from 'mongodb';
-import { verifyToken, getTokenFromRequest } from '../../utils/auth.js';
+import { verifyTokenString, getTokenFromRequest } from '../../utils/auth.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -13,10 +13,17 @@ export default async function handler(req, res) {
   try {
     // Verify authentication
     const token = getTokenFromRequest(req);
-    const decoded = verifyToken(token);
+    const decoded = verifyTokenString(token);
     
     if (!decoded) {
       return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // Get user ID from token
+    const userId = decoded.userId;
+    
+    if (!userId) {
+      return res.status(401).json({ error: 'Invalid token - missing user ID' });
     }
 
     const { fileId } = req.query;
@@ -25,17 +32,11 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'File ID required' });
     }
 
-    // Find user and file in MongoDB
+    // Find file in MongoDB
     const { db } = await connectDB();
-    const user = await db.collection('users').findOne({ email: decoded.email });
-    
-    if (!user) {
-      return res.status(401).json({ error: 'User not found' });
-    }
-
     const file = await db.collection('files').findOne({ 
       _id: new ObjectId(fileId),
-      userId: user.id || user._id.toString()
+      userId: userId
     });
 
     if (!file) {

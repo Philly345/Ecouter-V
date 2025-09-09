@@ -1,28 +1,27 @@
 import { filesDB } from '../../../utils/database.js';
-import { verifyToken, getTokenFromRequest } from '../../../utils/auth.js';
+import { verifyTokenString, getTokenFromRequest } from '../../../utils/auth.js';
 import { connectDB } from '../../../lib/mongodb.js';
 
 export default async function handler(req, res) {
   try {
     // Verify authentication
     const token = getTokenFromRequest(req);
-    const decoded = verifyToken(token);
+    const decoded = verifyTokenString(token);
     
     if (!decoded) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    // Find user in MongoDB
-    const { db } = await connectDB();
-    const user = await db.collection('users').findOne({ email: decoded.email });
+    // Get user ID from token
+    const userId = decoded.userId;
     
-    if (!user) {
-      return res.status(401).json({ error: 'User not found' });
+    if (!userId) {
+      return res.status(401).json({ error: 'Invalid token - missing user ID' });
     }
 
     if (req.method === 'GET') {
       // Get only completed files
-      const userId = user.id || user._id.toString();
+      const { db } = await connectDB();
       
       // Use MongoDB directly instead of filesDB utility for consistency
       const files = await db.collection('files')

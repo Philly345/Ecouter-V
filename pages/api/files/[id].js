@@ -1,4 +1,4 @@
-import { verifyToken, getTokenFromRequest } from '../../../utils/auth.js';
+import { verifyTokenString, getTokenFromRequest } from '../../../utils/auth.js';
 import { deleteFile } from '../../../utils/storage.js';
 import { connectDB } from '../../../lib/mongodb.js';
 import { ObjectId } from 'mongodb';
@@ -7,46 +7,75 @@ export default async function handler(req, res) {
   try {
     // Verify authentication
     const token = getTokenFromRequest(req);
-    const decoded = verifyToken(token);
+    const decoded = verifyTokenString(token);
     
     if (!decoded) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    // Find user in MongoDB
-    const { db } = await connectDB();
-    const user = await db.collection('users').findOne({ email: decoded.email });
+    // Get user ID from token
+    const userId = decoded.userId;
     
-    if (!user) {
-      return res.status(401).json({ error: 'User not found' });
+    if (!userId) {
+      return res.status(401).json({ error: 'Invalid token - missing user ID' });
     }
 
     const { id } = req.query;
 
     if (req.method === 'GET') {
       // Get single file
+      const { db } = await connectDB();
       const file = await db.collection('files').findOne({ 
         _id: new ObjectId(id) 
       });
       
-      const userId = user.id || user._id.toString();
-      if (!file || file.userId !== userId) {
+      console.log('File API - GET request:', {
+        id,
+        fileFound: !!file,
+        fileUserId: file?.userId,
+        fileUserIdType: typeof file?.userId,
+        userIdFromToken: userId,
+        match: file?.userId?.toString() === userId
+      });
+      
+      if (!file) {
         return res.status(404).json({ error: 'File not found' });
+      }
+      
+      // Check if user owns this file
+      const fileUserIdString = typeof file.userId === 'object' ? file.userId.toString() : file.userId;
+      if (fileUserIdString !== userId) {
+        console.log('File API - Access denied:', {
+          fileUserIdString,
+          userIdString: userId,
+          match: false
+        });
+        return res.status(403).json({ error: 'Access denied' });
       }
       
       res.status(200).json({
         success: true,
-        file,
+        file: {
+          ...file,
+          id: file._id.toString(),
+          _id: undefined
+        },
       });
     } else if (req.method === 'POST') {
       // Handle POST actions like regenerating summary
+      const { db } = await connectDB();
       const file = await db.collection('files').findOne({ 
         _id: new ObjectId(id) 
       });
       
-      const userId = user.id || user._id.toString();
-      if (!file || file.userId !== userId) {
+      if (!file) {
         return res.status(404).json({ error: 'File not found' });
+      }
+      
+      // Check if user owns this file
+      const fileUserIdString = typeof file.userId === 'object' ? file.userId.toString() : file.userId;
+      if (fileUserIdString !== userId) {
+        return res.status(403).json({ error: 'Access denied' });
       }
       
       if (req.body.action === 'regenerate_summary') {
@@ -88,13 +117,19 @@ export default async function handler(req, res) {
       
     } else if (req.method === 'DELETE') {
       // Delete file
+      const { db } = await connectDB();
       const file = await db.collection('files').findOne({ 
         _id: new ObjectId(id) 
       });
       
-      const userId = user.id || user._id.toString();
-      if (!file || file.userId !== userId) {
+      if (!file) {
         return res.status(404).json({ error: 'File not found' });
+      }
+      
+      // Check if user owns this file
+      const fileUserIdString = typeof file.userId === 'object' ? file.userId.toString() : file.userId;
+      if (fileUserIdString !== userId) {
+        return res.status(403).json({ error: 'Access denied' });
       }
       
       // Delete from storage

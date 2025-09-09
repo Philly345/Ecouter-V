@@ -192,6 +192,67 @@ export default function Dashboard() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   };
 
+  // Export functions
+  const handleExport = async (file, format) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/files/export', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          fileId: file.id,
+          format: format
+        }),
+      });
+
+      if (response.ok) {
+        if (format === 'pdf' || format === 'docx') {
+          // For PDF and DOCX, trigger download
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          const extension = format === 'pdf' ? 'pdf' : 'docx';
+          a.href = url;
+          a.download = `${file.name.replace(/\.[^/.]+$/, '')}_transcript.${extension}`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(url);
+        }
+      } else {
+        const errorData = await response.json();
+        console.error('Export failed:', errorData.error);
+      }
+    } catch (error) {
+      console.error('Export error:', error);
+    }
+  };
+
+  const handleDownload = (file) => {
+    if (!file || !file.transcript) return;
+    
+    const element = document.createElement('a');
+    const fileText = `Transcript: ${file.name}\nDate: ${new Date(file.createdAt).toLocaleDateString()}\nDuration: ${formatDuration(file.duration)}\n\n--- FULL TRANSCRIPT ---\n\n${file.transcript}`;
+    
+    const blob = new Blob([fileText], { type: 'text/plain' });
+    element.href = URL.createObjectURL(blob);
+    element.download = `${file.name.replace(/\.[^/.]+$/, '')}_transcript.txt`;
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+    URL.revokeObjectURL(element.href);
+  };
+
+  const formatDuration = (seconds) => {
+    if (!seconds) return '0:00';
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = Math.round(seconds % 60);
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
   if (!user) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
@@ -270,31 +331,6 @@ export default function Dashboard() {
                 <p className="text-white/60">
                   <T>Here's what's happening with your transcriptions</T>
                 </p>
-              </div>
-              <div className="flex items-center space-x-3">
-                {lastUpdated && (
-                  <span className="text-xs text-white/40">
-                    Last updated: {lastUpdated.toLocaleTimeString()}
-                  </span>
-                )}
-                <button
-                  onClick={toggleAutoRefresh}
-                  className={`px-3 py-1 rounded-lg text-xs transition-colors ${
-                    autoRefresh 
-                      ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
-                      : 'bg-gray-500/20 text-gray-400 border border-gray-500/30'
-                  }`}
-                >
-                  Auto-refresh {autoRefresh ? 'ON' : 'OFF'}
-                </button>
-                <button
-                  onClick={handleRefresh}
-                  disabled={isRefreshing}
-                  className="px-3 py-1 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 rounded-lg text-blue-400 text-xs transition-colors flex items-center space-x-1"
-                >
-                  <FiActivity className={`w-3 h-3 ${isRefreshing ? 'animate-spin' : ''}`} />
-                  <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
-                </button>
               </div>
             </div>
           </div>
@@ -405,7 +441,9 @@ export default function Dashboard() {
                     <FileCard 
                       key={file.id} 
                       file={file} 
-                      showActions={false} 
+                      showActions={true}
+                      onExport={handleExport}
+                      onDownload={handleDownload}
                     />
                   ))
                 ) : (

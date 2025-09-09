@@ -1,10 +1,11 @@
 import dotenv from 'dotenv';
+// Load environment variables from .env.local
 dotenv.config({ path: '.env.local' });
 
 import formidable from 'formidable';
 import fs from 'fs';
 import { uploadFile, deleteFile } from '../../utils/storage.js';
-import { verifyToken, getTokenFromRequest } from '../../utils/auth.js';
+import { verifyTokenString, getTokenFromRequest } from '../../utils/auth.js';
 import { connectDB } from '../../lib/mongodb.js';
 import { ObjectId } from 'mongodb';
 import { 
@@ -30,19 +31,21 @@ export default async function handler(req, res) {
   try {
     // Verify authentication
     const token = getTokenFromRequest(req);
-    const decoded = verifyToken(token);
+    const decoded = verifyTokenString(token);
     
     if (!decoded) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    // Find user in MongoDB
-    const { db } = await connectDB();
-    const user = await db.collection('users').findOne({ email: decoded.email });
+    // Get user ID from token
+    const userId = decoded.userId;
     
-    if (!user) {
-      return res.status(401).json({ error: 'User not found' });
+    if (!userId) {
+      return res.status(401).json({ error: 'Invalid token - missing user ID' });
     }
+
+    // Connect to database
+    const { db } = await connectDB();
 
     // Parse form data
     const form = formidable({
@@ -139,7 +142,6 @@ export default async function handler(req, res) {
     
     // Generate unique filename
     const timestamp = Date.now();
-    const userId = user.id || user._id.toString();
     const fileName = `${userId}/${timestamp}_${file.originalFilename}`;
     
     console.log('☁️ Uploading to R2:', fileName);

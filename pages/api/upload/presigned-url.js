@@ -1,6 +1,6 @@
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { verifyToken, getTokenFromRequest } from '../../../utils/auth.js';
+import { verifyTokenString, getTokenFromRequest } from '../../../utils/auth.js';
 import { connectDB } from '../../../lib/mongodb.js';
 
 const s3Client = new S3Client({
@@ -31,18 +31,17 @@ export default async function handler(req, res) {
 
     // Verify authentication
     const token = getTokenFromRequest(req);
-    const decoded = verifyToken(token);
+    const decoded = verifyTokenString(token);
     
     if (!decoded) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    // Find user in MongoDB
-    const { db } = await connectDB();
-    const user = await db.collection('users').findOne({ email: decoded.email });
+    // Get user ID from token
+    const userId = decoded.userId;
     
-    if (!user) {
-      return res.status(401).json({ error: 'User not found' });
+    if (!userId) {
+      return res.status(401).json({ error: 'Invalid token - missing user ID' });
     }
 
     const { fileName, fileType, fileSize } = req.body;
@@ -75,7 +74,6 @@ export default async function handler(req, res) {
 
     // Generate unique filename
     const timestamp = Date.now();
-    const userId = user.id || user._id.toString();
     const uniqueFileName = `${userId}/${timestamp}_${fileName}`;
 
     // Create presigned URL for direct upload to R2

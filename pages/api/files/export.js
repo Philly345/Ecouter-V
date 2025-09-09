@@ -1,7 +1,7 @@
 import { jsPDF } from 'jspdf';
 import { Document, Packer, Paragraph, TextRun } from 'docx';
 import { Client } from '@notionhq/client';
-import { verifyToken, getTokenFromRequest } from '../../../utils/auth.js';
+import { verifyTokenString, getTokenFromRequest } from '../../../utils/auth.js';
 import { connectDB } from '../../../lib/mongodb.js';
 import { ObjectId } from 'mongodb';
 
@@ -13,18 +13,17 @@ export default async function handler(req, res) {
   try {
     // Verify authentication
     const token = getTokenFromRequest(req);
-    const decoded = verifyToken(token);
+    const decoded = verifyTokenString(token);
     
     if (!decoded) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    // Find user in MongoDB
-    const { db } = await connectDB();
-    const user = await db.collection('users').findOne({ email: decoded.email });
+    // Get user ID from token
+    const userId = decoded.userId;
     
-    if (!user) {
-      return res.status(401).json({ error: 'User not found' });
+    if (!userId) {
+      return res.status(401).json({ error: 'Invalid token - missing user ID' });
     }
 
     const { fileId, format, notionToken, notionPageId } = req.body;
@@ -34,16 +33,32 @@ export default async function handler(req, res) {
     }
 
     // Get file details from MongoDB
+    const { db } = await connectDB();
     const file = await db.collection('files').findOne({ 
       _id: new ObjectId(fileId) 
     });
+    
+    console.log('Export API - File lookup:', {
+      fileId,
+      fileFound: !!file,
+      fileUserId: file?.userId,
+      fileUserIdType: typeof file?.userId
+    });
+    
     if (!file) {
       return res.status(404).json({ error: 'File not found' });
     }
 
     // Verify user owns the file
-    const userId = user.id || user._id.toString();
-    if (file.userId !== userId) {
+    const fileUserIdString = typeof file.userId === 'object' ? file.userId.toString() : file.userId;
+    
+    console.log('Export authorization check:', {
+      userId,
+      fileUserIdString,
+      match: fileUserIdString === userId
+    });
+    
+    if (fileUserIdString !== userId) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
