@@ -49,8 +49,13 @@ export default async function handler(req, res) {
         _id: undefined
       }));
       
-      // Calculate storage usage
-      const storageUsed = files.reduce((total, file) => total + (file.size || 0), 0);
+      // Calculate storage usage using aggregation for accuracy
+      const storageAggregation = await db.collection('files').aggregate([
+        { $match: { userId: userId } },
+        { $group: { _id: null, totalSize: { $sum: '$size' } } }
+      ]).toArray();
+
+      const storageUsed = storageAggregation.length > 0 ? storageAggregation[0].totalSize : 0;
       const storageLimit = 1024 * 1024 * 1024; // 1GB in bytes
       
       res.status(200).json({
