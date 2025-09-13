@@ -422,18 +422,6 @@ async function pollGladiaTranscriptionStatus(fileId, transcriptId, resultUrl, se
     try {
       console.log(`🔍 Checking Gladia transcription status (attempt ${attempts}/${maxAttempts})...`);
       
-      // Check if file still exists and is processing
-      const currentFile = await db.collection('files').findOne({ _id: new ObjectId(fileId) });
-      if (!currentFile) {
-        console.log(`🛑 File ${fileId} no longer exists - stopping polling (likely cancelled)`);
-        return; // File was deleted (cancelled), stop polling
-      }
-      
-      if (currentFile.status !== 'processing' && currentFile.status !== 'processing_ai') {
-        console.log(`🛑 File ${fileId} status changed to ${currentFile.status} - stopping polling`);
-        return; // File status changed, stop polling
-      }
-      
       const response = await fetch(resultUrl, {
         headers: { 
           'x-gladia-key': process.env.GLADIA_API_KEY,

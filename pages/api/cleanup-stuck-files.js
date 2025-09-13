@@ -15,6 +15,7 @@ export default async function handler(req, res) {
     }
 
     console.log('🧹 Starting automatic cleanup of stuck processing files...');
+    try {
     const dbConnection = await connectDB();
     if (!dbConnection || !dbConnection.db) {
       return res.status(500).json({ error: 'Database connection failed' });

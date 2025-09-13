@@ -1,5 +1,6 @@
 import { connectDB } from '../../../lib/mongodb';
 import bcrypt from 'bcryptjs';
+import { trackUserRegistration } from '../../../lib/deviceTracker';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -46,6 +47,19 @@ export default async function handler(req, res) {
     };
 
     await db.collection('users').insertOne(newUser);
+
+    // Track the successful registration for account limit enforcement
+    try {
+      await trackUserRegistration(
+        pendingUser.email, 
+        req, 
+        pendingUser.deviceFingerprint,
+        pendingUser.clientFingerprint || {}
+      );
+      console.log('✅ Registration tracking completed for:', pendingUser.email);
+    } catch (trackingError) {
+      console.error('⚠️ Registration tracking failed (user still created):', trackingError);
+    }
 
     // Clean up verification and pending user data
     await db.collection('email_verifications').deleteMany({ email });

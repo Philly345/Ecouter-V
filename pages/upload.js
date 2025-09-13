@@ -394,7 +394,7 @@ export default function Upload() {
   return (
     <>
       <Head>
-        <title>Upload | Ecouter</title>
+        <title><T>Upload</T> | Ecouter</title>
       </Head>
 
       <div className="min-h-screen flex bg-black text-white">

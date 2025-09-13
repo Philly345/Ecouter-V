@@ -18,6 +18,7 @@ import {
 export default function Dashboard() {
   const router = useRouter();
   const { user, logout, loading: authLoading, authChecked } = useAuth();
+  const { error, email } = router.query; // Get error params from Google OAuth redirect
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -25,6 +26,16 @@ export default function Dashboard() {
   const [lastUpdated, setLastUpdated] = useState(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [eventManager, setEventManager] = useState(null);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  // Handle Google OAuth errors
+  useEffect(() => {
+    if (error === 'already_logged_in' && email) {
+      setErrorMessage(`You are already signed in as ${decodeURIComponent(email)}. You cannot sign in with a different account in the same browser session.`);
+      // Clear the error from URL
+      router.replace('/dashboard', undefined, { shallow: true });
+    }
+  }, [error, email, router]);
 
   // Initialize event manager
   useEffect(() => {
@@ -307,7 +318,7 @@ export default function Dashboard() {
   return (
     <>
       <Head>
-        <title>Dashboard - Ecouter Transcribe</title>
+        <title><T>Dashboard</T> - Ecouter Transcribe</title>
         <meta name="description" content="View your transcription analytics and recent files." />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
@@ -334,6 +345,28 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
+
+          {/* Error Message */}
+          {errorMessage && (
+            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-red-300">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <FiUsers className="w-5 h-5" />
+                  <span className="font-medium">Account Security Notice</span>
+                </div>
+                <button
+                  onClick={() => setErrorMessage('')}
+                  className="text-red-300 hover:text-red-200 transition-colors"
+                >
+                  ×
+                </button>
+              </div>
+              <p className="mt-2 text-sm">{errorMessage}</p>
+              <p className="mt-1 text-xs text-red-400">
+                To use a different account, please sign out first using the sidebar menu.
+              </p>
+            </div>
+          )}
 
           {/* Analytics Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -437,7 +470,7 @@ export default function Dashboard() {
               
               <div className="space-y-4">
                 {recentFiles.length > 0 ? (
-                  recentFiles.slice(0, 2).map((file) => (
+                  recentFiles.map((file) => (
                     <FileCard 
                       key={file.id} 
                       file={file} 

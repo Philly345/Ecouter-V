@@ -1,9 +1,22 @@
+import { verifyTokenString, getTokenFromRequest } from '../../../utils/auth.js';
+
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
+    // Check if user is already logged in
+    const existingToken = getTokenFromRequest(req);
+    if (existingToken) {
+      const decoded = verifyTokenString(existingToken);
+      if (decoded && decoded.email) {
+        console.log('🚫 User already logged in, blocking Google OAuth:', decoded.email);
+        // Redirect to dashboard with error message
+        return res.redirect('/dashboard?error=already_logged_in&email=' + encodeURIComponent(decoded.email));
+      }
+    }
+
     const scopes = [
       'https://www.googleapis.com/auth/userinfo.email',
       'https://www.googleapis.com/auth/userinfo.profile'

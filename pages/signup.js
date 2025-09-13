@@ -1,15 +1,16 @@
 import Head from 'next/head';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { FiMail, FiLock, FiUser, FiEye, FiEyeOff } from 'react-icons/fi';
+import { FiMail, FiLock, FiUser, FiEye, FiEyeOff, FiAlertCircle } from 'react-icons/fi';
 import { FcGoogle } from 'react-icons/fc';
 import FloatingBubbles from '../components/FloatingBubbles';
 import { useAuth } from '../components/AuthContext';
+import { DeviceFingerprinter } from '../utils/deviceFingerprint';
 
 export default function Signup() {
   const router = useRouter();
-  const { signup } = useAuth();
+  const { signup, user, authChecked, authLoading } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -21,11 +22,48 @@ export default function Signup() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [redirecting, setRedirecting] = useState(false);
+  const [accountLimitError, setAccountLimitError] = useState(null);
+  const [deviceFingerprint, setDeviceFingerprint] = useState(null);
+
+  // Generate device fingerprint on component mount
+  useEffect(() => {
+    const generateFingerprint = async () => {
+      try {
+        const fingerprint = await DeviceFingerprinter.generateFingerprint();
+        setDeviceFingerprint(fingerprint);
+        console.log('Device fingerprint generated for signup');
+      } catch (error) {
+        console.error('Failed to generate device fingerprint:', error);
+      }
+    };
+    
+    generateFingerprint();
+  }, []);
+
+  // Redirect if user is already logged in
+  useEffect(() => {
+    if (authChecked && user) {
+      setRedirecting(true);
+      setError(`You are already signed in as ${user.email}. Redirecting to dashboard...`);
+      setTimeout(() => {
+        router.push('/dashboard');
+      }, 2000);
+    }
+  }, [authChecked, user, router]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setAccountLimitError(null);
     setLoading(true);
+
+    // Prevent signup if user is already signed in
+    if (user) {
+      setError(`You are already signed in as ${user.email}. Please sign out first if you want to create a different account.`);
+      setLoading(false);
+      return;
+    }
 
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
@@ -40,11 +78,28 @@ export default function Signup() {
     }
 
     try {
-      const result = await signup(formData.name, formData.email, formData.password);
+      // Include device fingerprint in signup data
+      const signupData = {
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        deviceFingerprint: deviceFingerprint
+      };
+
+      const result = await signup(signupData);
       
       if (result.success) {
         // Redirect to verification page with email
         router.push(`/verify?email=${encodeURIComponent(formData.email)}`);
+      } else if (result.error === 'Account creation limit reached') {
+        // Handle account limit error specially
+        setAccountLimitError({
+          message: result.message,
+          accountCount: result.accountCount,
+          accountLimit: result.accountLimit,
+          existingEmails: result.existingEmails,
+          canSignIn: result.canSignIn
+        });
       } else {
         setError(result.error || 'Signup failed');
       }
@@ -89,6 +144,40 @@ export default function Signup() {
             {error && (
               <div className="mb-3 p-2 bg-red-500/10 border border-red-500/20 rounded-lg text-red-300 text-xs">
                 {error}
+              </div>
+            )}
+
+            {accountLimitError && (
+              <div className="mb-3 p-3 bg-orange-500/10 border border-orange-500/20 rounded-lg">
+                <div className="flex items-start space-x-2">
+                  <FiAlertCircle className="w-4 h-4 text-orange-400 mt-0.5 flex-shrink-0" />
+                  <div className="text-xs">
+                    <p className="text-orange-300 font-medium mb-2">
+                      Account Creation Limit Reached
+                    </p>
+                    <p className="text-orange-200/80 mb-2">
+                      {accountLimitError.message}
+                    </p>
+                    {accountLimitError.existingEmails && accountLimitError.existingEmails.length > 0 && (
+                      <div className="mb-2">
+                        <p className="text-orange-200/80 mb-1">Your existing accounts:</p>
+                        <ul className="list-disc list-inside text-orange-200/70 text-xs space-y-0.5">
+                          {accountLimitError.existingEmails.map((email, index) => (
+                            <li key={index}>{email}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {accountLimitError.canSignIn && (
+                      <Link
+                        href="/login"
+                        className="inline-block px-3 py-1.5 bg-orange-500 text-white text-xs rounded-md hover:bg-orange-600 transition-colors"
+                      >
+                        Sign In to Existing Account
+                      </Link>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
 

@@ -90,14 +90,43 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
-  const login = async (email, password) => {
+  const login = async (loginData) => {
     console.log('🔐 Starting login process...');
+    
+    // Handle both old format (email, password) and new format (object)
+    let email, password, deviceFingerprint;
+    if (typeof loginData === 'object' && loginData.email) {
+      ({ email, password, deviceFingerprint } = loginData);
+    } else {
+      // Legacy support for old format
+      email = loginData;
+      password = arguments[1];
+      deviceFingerprint = null;
+    }
+    
+    // Check if user is already logged in
+    if (user && user.email) {
+      console.log('⚠️ User already logged in:', user.email);
+      if (user.email === email) {
+        // Same user trying to login again - allow it
+        console.log('✅ Same user logging in again, allowing...');
+        return { success: true };
+      } else {
+        // Different user trying to login - prevent it
+        console.log('🚫 Different user trying to login, blocking...');
+        return { 
+          success: false, 
+          error: `You are already signed in as ${user.email}. Please sign out first to use a different account.` 
+        };
+      }
+    }
+    
     const response = await fetch('/api/auth/login', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, deviceFingerprint }),
     });
 
     const data = await response.json();
@@ -108,6 +137,8 @@ export const AuthProvider = ({ children }) => {
       console.log('💾 Storing token and setting user...');
       if (typeof window !== 'undefined') {
         localStorage.setItem('token', data.token);
+        // Store user email for session tracking
+        localStorage.setItem('activeUserEmail', data.user.email);
       }
       setToken(data.token); // Set token in state
       
@@ -128,13 +159,23 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const signup = async (name, email, password) => {
+  const signup = async (signupData) => {
+    // Support both old format (name, email, password) and new format (object with deviceFingerprint)
+    let requestBody;
+    if (typeof signupData === 'string') {
+      // Old format - handle backward compatibility
+      requestBody = { name: signupData, email: arguments[1], password: arguments[2] };
+    } else {
+      // New format - object with device fingerprint
+      requestBody = signupData;
+    }
+
     const response = await fetch('/api/auth/signup', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ name, email, password }),
+      body: JSON.stringify(requestBody),
     });
 
     const data = await response.json();
@@ -143,7 +184,7 @@ export const AuthProvider = ({ children }) => {
       // For email verification flow, don't set user or token yet
       return { success: true, requiresVerification: data.requiresVerification, email: data.email };
     } else {
-      return { success: false, error: data.error };
+      return { success: false, error: data.error, ...data };
     }
   };
 
@@ -152,6 +193,7 @@ export const AuthProvider = ({ children }) => {
       // Clear token immediately to prevent any further API calls
       if (typeof window !== 'undefined') {
         localStorage.removeItem('token');
+        localStorage.removeItem('activeUserEmail'); // Clear active user tracking
         // Clear all other potential cached data
         localStorage.removeItem('user');
         localStorage.removeItem('dashboard-cache');

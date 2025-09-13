@@ -39,7 +39,7 @@ export default function RecentFiles() {
       }
       
       // Add filter parameter based on activeFilter
-      let url = '/api/files?limit=20&offset=0';
+      let url = '/api/files?limit=50&offset=0';
       if (activeFilter !== 'all') {
         url += `&status=${activeFilter}`;
       }

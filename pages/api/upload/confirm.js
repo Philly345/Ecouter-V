@@ -223,18 +223,6 @@ async function pollTranscriptionStatus(fileId, transcriptId, settings) {
     try {
       console.log(`🔍 Polling attempt ${attempts}/${maxAttempts} for file ${fileId}`);
       
-      // Check if file still exists and is processing
-      const currentFile = await db.collection('files').findOne({ _id: new ObjectId(fileId) });
-      if (!currentFile) {
-        console.log(`🛑 File ${fileId} no longer exists - stopping polling (likely cancelled)`);
-        return; // File was deleted (cancelled), stop polling
-      }
-      
-      if (currentFile.status !== 'processing' && currentFile.status !== 'processing_ai') {
-        console.log(`🛑 File ${fileId} status changed to ${currentFile.status} - stopping polling`);
-        return; // File status changed, stop polling
-      }
-      
       const response = await fetch(`https://api.assemblyai.com/v2/transcript/${transcriptId}`, {
         headers: {
           'Authorization': `Bearer ${process.env.ASSEMBLYAI_API_KEY}`,

@@ -1,5 +1,7 @@
 import { usersDB } from '../../../../utils/database.js';
 import { generateToken, setTokenCookie } from '../../../../utils/auth.js';
+import { generateDeviceFingerprint, canUserRegister, trackUserRegistration } from '../../../../lib/deviceTracker';
+import { trackDeviceAccess } from '../../../../lib/deviceMonitor.js';
 
 export default async function handler(req, res) {
   console.log('--- Google Callback Handler Reached ---');
@@ -65,6 +67,26 @@ export default async function handler(req, res) {
     let user = await usersDB.findByEmail(googleUser.email);
 
     if (!user) {
+      // Generate device fingerprint for new user
+      const deviceFingerprint = generateDeviceFingerprint(req, req.headers['user-agent']);
+      
+      // Check account creation limit for new users
+      const registrationCheck = await canUserRegister(req, deviceFingerprint);
+      
+      if (!registrationCheck.canRegister) {
+        console.log('🚫 Google OAuth: Account creation limit reached for:', googleUser.email);
+        
+        // Redirect to login with error about account limit
+        const errorParams = new URLSearchParams({
+          error: 'account_limit_reached',
+          email: googleUser.email,
+          count: registrationCheck.accountCount,
+          limit: registrationCheck.accountLimit
+        });
+        
+        return res.redirect(`/login?${errorParams.toString()}`);
+      }
+
       // Create new user
       user = await usersDB.create({
         name: googleUser.name || googleUser.email.split('@')[0],
@@ -76,6 +98,14 @@ export default async function handler(req, res) {
         transcriptionsCount: 0,
         minutesUsed: 0,
       });
+
+      // Track the registration
+      try {
+        await trackUserRegistration(googleUser.email, req, deviceFingerprint);
+        console.log('✅ Google OAuth registration tracking completed for:', googleUser.email);
+      } catch (trackingError) {
+        console.error('⚠️ Google OAuth registration tracking failed:', trackingError);
+      }
     } else {
       // Update existing user with Google info
       user = await usersDB.update(user._id, {
@@ -93,6 +123,26 @@ export default async function handler(req, res) {
 
     // Set cookie
     setTokenCookie(res, token);
+
+    // Track device access for security monitoring
+    try {
+      const deviceFingerprint = generateDeviceFingerprint(req, req.headers['user-agent']);
+      const deviceAccessInfo = await trackDeviceAccess(
+        user._id.toString(), 
+        user.email, 
+        req, 
+        deviceFingerprint
+      );
+      
+      console.log('🔍 Google OAuth device access tracked:', {
+        email: user.email,
+        isNewDevice: deviceAccessInfo.isNewDevice,
+        deviceType: deviceAccessInfo.deviceInfo?.deviceType,
+        location: deviceAccessInfo.location?.city || 'Unknown'
+      });
+    } catch (trackingError) {
+      console.error('⚠️ Google OAuth device tracking failed:', trackingError);
+    }
 
     // Redirect to a special page that will set localStorage and then redirect to dashboard
     const userData = JSON.stringify({
