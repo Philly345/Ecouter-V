@@ -54,11 +54,12 @@ export default function ProcessingFiles() {
         
         // Auto-redirect to recent files if no processing files remain
         if (processedFiles.length === 0 && !loading) {
+          console.log('No processing files found, redirecting to recent files');
           router.push('/files/recent');
           return;
         }
       } else {
-        console.error('Failed to fetch files');
+        console.error('Failed to fetch files:', response.status, response.statusText);
       }
     } catch (error) {
       console.error('Files fetch error:', error);
@@ -91,7 +92,7 @@ export default function ProcessingFiles() {
   };
 
   const handleCancelFile = async (fileId, fileName) => {
-    if (!window.confirm(`Are you sure you want to cancel processing "${fileName}"? This action cannot be undone.`)) {
+    if (!window.confirm(`Are you sure you want to cancel processing "${fileName}"? This action cannot be undone and any progress will be lost.`)) {
       return;
     }
 
@@ -108,22 +109,44 @@ export default function ProcessingFiles() {
       });
 
       if (response.ok) {
+        const data = await response.json();
+        
         // Remove the file from the list immediately
         setFiles(prev => prev.filter(file => file.id !== fileId));
         
-        // Show success message
+        // Show success message with more detail
         console.log(`Successfully cancelled processing for "${fileName}"`);
+        console.log('Cancel response:', data);
+        
+        // Show a brief success notification to user
+        // You could replace this with a toast notification system if available
+        if (data.message) {
+          console.log('Cancellation details:', data.message);
+        }
         
         // Refresh the list to ensure consistency
-        fetchFiles();
+        setTimeout(() => fetchFiles(), 1000);
       } else {
         const errorData = await response.json();
-        console.error('Failed to cancel file:', errorData.error);
-        alert(`Failed to cancel file: ${errorData.error}`);
+        console.error('Failed to cancel file:', errorData);
+        
+        let errorMessage = 'Failed to cancel file';
+        if (errorData.error) {
+          if (errorData.error.includes('not in processing state')) {
+            errorMessage = 'File is no longer being processed. Please refresh the page.';
+          } else {
+            errorMessage = `Failed to cancel: ${errorData.error}`;
+          }
+        }
+        
+        alert(errorMessage);
+        
+        // Refresh the list in case the file status changed
+        fetchFiles();
       }
     } catch (error) {
       console.error('Cancel file error:', error);
-      alert('Failed to cancel file. Please try again.');
+      alert('Failed to cancel file. Please check your connection and try again.');
     } finally {
       setCancellingFiles(prev => {
         const newSet = new Set(prev);
