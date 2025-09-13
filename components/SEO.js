@@ -208,21 +208,7 @@ export default function SEO({
     ]
   };
 
-  // Dynamic FAQ Schema - only if FAQ data is provided
-  const faqStructuredData = hasFaqs ? {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    "mainEntity": faqData.map(faq => ({
-      "@type": "Question",
-      "name": faq.question,
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": faq.answer
-      }
-    }))
-  } : null;
-
-  // Default FAQs for homepage if no custom FAQs provided
+  // Dynamic FAQ Schema - only if FAQ data is provided, otherwise use default
   const defaultFaqData = [
     {
       question: "Is Ecouter Transcribe available worldwide?",
@@ -246,10 +232,11 @@ export default function SEO({
     }
   ];
 
-  const finalFaqData = hasFaqs ? faqStructuredData : {
+  // Use provided FAQ data or fall back to default, but only create ONE FAQPage schema
+  const finalFaqData = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
-    "mainEntity": defaultFaqData.map(faq => ({
+    "mainEntity": (hasFaqs ? faqData : defaultFaqData).map(faq => ({
       "@type": "Question",
       "name": faq.question,
       "acceptedAnswer": {
