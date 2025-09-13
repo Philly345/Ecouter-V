@@ -4,7 +4,7 @@ import { useRouter } from 'next/router';
 import { useAuth } from '../../components/AuthContext';
 import Sidebar from '../../components/Sidebar';
 import FileCard from '../../components/FileCard';
-import { FiPlay, FiRefreshCw, FiFile, FiClock } from 'react-icons/fi';
+import { FiPlay, FiRefreshCw, FiFile, FiClock, FiX } from 'react-icons/fi';
 
 export default function ProcessingFiles() {
   const router = useRouter();
@@ -13,6 +13,7 @@ export default function ProcessingFiles() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [cancellingFiles, setCancellingFiles] = useState(new Set());
 
   useEffect(() => {
     if (authChecked && !user) {
@@ -32,7 +33,7 @@ export default function ProcessingFiles() {
   const fetchFiles = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/files?status=processing', {
+      const response = await fetch('/api/files?status=processing,processing_ai', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -43,10 +44,10 @@ export default function ProcessingFiles() {
         // Process files to ensure they have progress and step information
         const processedFiles = (data.files || []).map(file => ({
           ...file,
-          // Ensure progress exists (default to a random value between 10-90 if not available)
-          progress: file.progress || Math.floor(Math.random() * 80) + 10,
-          // Ensure step information exists
-          step: file.step || getProcessingStep(file.progress || Math.floor(Math.random() * 80) + 10)
+          // Use actual progress from database, or default if not available
+          progress: file.progress || 15,
+          // Use actual step from database, or generate one based on progress
+          step: file.step || getProcessingStep(file.progress || 15)
         }));
         
         setFiles(processedFiles);
@@ -69,20 +70,67 @@ export default function ProcessingFiles() {
   
   // Helper function to determine processing step based on progress
   const getProcessingStep = (progress) => {
-    if (progress < 25) {
-      return 'Converting audio format';
-    } else if (progress < 50) {
-      return 'Analyzing speech patterns';
-    } else if (progress < 75) {
-      return 'Generating transcript';
+    if (progress < 20) {
+      return 'Starting AI transcription';
+    } else if (progress < 40) {
+      return 'Processing audio with AI';
+    } else if (progress < 70) {
+      return 'Processing transcript and speakers';
+    } else if (progress < 85) {
+      return 'Translating content';
+    } else if (progress < 95) {
+      return 'Generating AI summary';
     } else {
-      return 'Finalizing and creating summary';
+      return 'Finalizing transcription';
     }
   };
 
   const handleRefresh = () => {
     setRefreshing(true);
     fetchFiles();
+  };
+
+  const handleCancelFile = async (fileId, fileName) => {
+    if (!window.confirm(`Are you sure you want to cancel processing "${fileName}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    setCancellingFiles(prev => new Set([...prev, fileId]));
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/files/${fileId}/cancel`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        // Remove the file from the list immediately
+        setFiles(prev => prev.filter(file => file.id !== fileId));
+        
+        // Show success message
+        console.log(`Successfully cancelled processing for "${fileName}"`);
+        
+        // Refresh the list to ensure consistency
+        fetchFiles();
+      } else {
+        const errorData = await response.json();
+        console.error('Failed to cancel file:', errorData.error);
+        alert(`Failed to cancel file: ${errorData.error}`);
+      }
+    } catch (error) {
+      console.error('Cancel file error:', error);
+      alert('Failed to cancel file. Please try again.');
+    } finally {
+      setCancellingFiles(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(fileId);
+        return newSet;
+      });
+    }
   };
   
   if (!authChecked || authLoading) {
@@ -153,9 +201,25 @@ export default function ProcessingFiles() {
             <div className="grid grid-cols-1 gap-2">
               {files.map((file) => (
                 <div key={file.id} className="p-4 bg-black border border-white/10 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
-                    <div className="flex-1 truncate text-sm">{file.name}</div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3 flex-1 min-w-0">
+                      <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+                      <div className="flex-1 truncate text-sm">{file.name}</div>
+                    </div>
+                    
+                    {/* Cancel Button */}
+                    <button
+                      onClick={() => handleCancelFile(file.id, file.name)}
+                      disabled={cancellingFiles.has(file.id)}
+                      className="ml-3 p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Cancel processing"
+                    >
+                      {cancellingFiles.has(file.id) ? (
+                        <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin"></div>
+                      ) : (
+                        <FiX className="w-4 h-4" />
+                      )}
+                    </button>
                   </div>
                   
                   {/* File Details - simplified */}

@@ -22,6 +22,7 @@ import {
   FiVideo
 } from 'react-icons/fi';
 import T from './T';
+import { useNotifications } from './NotificationContext';
 
 const Sidebar = ({ user, currentPage = 'dashboard', onLogout, onSidebarToggle }) => {
   const router = useRouter();
@@ -29,6 +30,9 @@ const Sidebar = ({ user, currentPage = 'dashboard', onLogout, onSidebarToggle })
   // Changed from isSidebarHidden to isSidebarCollapsed for clarity
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [otherFeaturesOpen, setOtherFeaturesOpen] = useState(false);
+  
+  // Get unread notification count
+  const { unreadCount } = useNotifications();
   
   // Check if device is mobile and set initial sidebar state
   useEffect(() => {
@@ -118,7 +122,12 @@ const Sidebar = ({ user, currentPage = 'dashboard', onLogout, onSidebarToggle })
         {user && (
           <div className="p-4 border-b border-white/10">
             <Link href="/profile">
-              <div className="flex items-center space-x-3 cursor-pointer hover:bg-white/5 rounded-lg p-2 transition-colors">
+              <div className="relative flex items-center space-x-3 cursor-pointer hover:bg-white/5 rounded-lg p-2 transition-colors">
+                {/* Orange notification indicator */}
+                {unreadCount > 0 && (
+                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-orange-500 rounded-full animate-pulse shadow-lg border-2 border-black"></div>
+                )}
+                
                 {user.avatar ? (
                   <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full" />
                 ) : (
@@ -220,9 +229,12 @@ const Sidebar = ({ user, currentPage = 'dashboard', onLogout, onSidebarToggle })
                 
                 <Link
                   href="/live-transcription"
-                  className={`flex items-center justify-between px-3 py-2 rounded-lg transition-all duration-200 hover:bg-white/5 ${
+                  className={`flex items-center justify-between px-3 py-2 rounded-lg transition-all duration-200 ml-0 opacity-50 cursor-not-allowed ${
                     currentPage === 'live-transcription' ? 'bg-white/10' : ''
                   }`}
+                  tabIndex={-1}
+                  aria-disabled="true"
+                  onClick={e => e.preventDefault()}
                 >
                   <div className="flex items-center space-x-3">
                     <FiMic className="w-4 h-4 text-white/70" />
@@ -237,9 +249,12 @@ const Sidebar = ({ user, currentPage = 'dashboard', onLogout, onSidebarToggle })
                 
                 <Link
                   href="/live-transcription/sessions"
-                  className={`flex items-center px-3 py-2 rounded-lg transition-all duration-200 hover:bg-white/5 ml-6 ${
+                  className={`flex items-center px-3 py-2 rounded-lg transition-all duration-200 ml-6 opacity-50 cursor-not-allowed ${
                     currentPage === 'live-transcription-sessions' ? 'bg-white/10' : ''
                   }`}
+                  tabIndex={-1}
+                  aria-disabled="true"
+                  onClick={e => e.preventDefault()}
                 >
                   <div className="flex items-center space-x-3">
                     <FiClock className="w-3 h-3 text-white/60" />

@@ -24,7 +24,12 @@ export default async function handler(req, res) {
 
     if (req.method === 'GET') {
       // Get single file
-      const { db } = await connectDB();
+      const dbConnection = await connectDB();
+      if (!dbConnection || !dbConnection.db) {
+        return res.status(500).json({ error: 'Database connection failed' });
+      }
+      
+      const { db } = dbConnection;
       const file = await db.collection('files').findOne({ 
         _id: new ObjectId(id) 
       });

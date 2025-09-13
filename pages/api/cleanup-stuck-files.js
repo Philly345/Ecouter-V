@@ -15,7 +15,13 @@ export default async function handler(req, res) {
     }
 
     console.log('🧹 Starting automatic cleanup of stuck processing files...');
-    const { db } = await connectDB();
+    try {
+    const dbConnection = await connectDB();
+    if (!dbConnection || !dbConnection.db) {
+      return res.status(500).json({ error: 'Database connection failed' });
+    }
+    
+    const { db } = dbConnection;
     
     // Find files stuck in processing for more than 30 minutes
     const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);

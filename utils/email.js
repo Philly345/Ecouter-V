@@ -30,54 +30,93 @@ export async function sendEmail({ to, subject, html, text }) {
 
 export function generatePasswordResetEmail(resetLink, userName) {
   return {
-    subject: 'Reset Your Ecouter Transcribe Password',
+    subject: '🔐 Reset Your Ecouter Password',
     html: `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <style>
-          body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f4; }
-          .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; }
-          .logo { text-align: center; margin-bottom: 30px; }
-          .button { display: inline-block; padding: 12px 30px; background: #007bff; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
-          .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; color: #666; font-size: 12px; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="logo">
-            <h1 style="color: #333;">🎵 Ecouter Transcribe</h1>
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; line-height: 1.6;">
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+          <h1 style="margin: 0; font-size: 28px;">🎵 Ecouter</h1>
+          <p style="margin: 10px 0 0 0; opacity: 0.9; font-size: 16px;">Password Reset Request</p>
+        </div>
+
+        <!-- Main Content -->
+        <div style="background: white; padding: 30px; border: 1px solid #e5e7eb; border-top: none;">
+          <h2 style="color: #1f2937; margin-top: 0;">Hello ${userName || 'User'},</h2>
+          
+          <p style="color: #374151;">We received a request to reset your password for your Ecouter account. Click the button below to create a new password:</p>
+
+          <!-- Reset Button -->
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${resetLink}" 
+               style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+              🔐 Reset My Password
+            </a>
           </div>
-          <h2>Password Reset Request</h2>
-          <p>Hello ${userName},</p>
-          <p>We received a request to reset your password. Click the button below to create a new password:</p>
-          <div style="text-align: center;">
-            <a href="${resetLink}" class="button">Reset Password</a>
+
+          <!-- Security Information -->
+          <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 20px; margin: 25px 0;">
+            <h3 style="color: #92400e; margin-top: 0; font-size: 16px;">🔒 Security Information</h3>
+            <ul style="color: #92400e; margin: 0; padding-left: 20px;">
+              <li>This link will expire in <strong>1 hour</strong> for security</li>
+              <li>The link can only be used once</li>
+              <li>If you didn't request this, please ignore this email</li>
+            </ul>
           </div>
-          <p>If you didn't request this password reset, please ignore this email. Your password will remain unchanged.</p>
-          <p>This link will expire in 1 hour for security reasons.</p>
-          <div class="footer">
-            <p>Best regards,<br>The Ecouter Transcribe Team</p>
-            <p>This email was sent to ${to}. If you have any questions, please contact our support team.</p>
+
+          <!-- Alternative Link -->
+          <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px; margin: 25px 0;">
+            <p style="margin: 0; color: #6b7280; font-size: 14px;">
+              <strong>Can't click the button?</strong> Copy and paste this link into your browser:
+            </p>
+            <p style="margin: 10px 0 0 0; word-break: break-all; color: #4f46e5; font-size: 12px;">
+              ${resetLink}
+            </p>
+          </div>
+
+          <!-- Support Info -->
+          <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+            <p style="color: #6b7280; font-size: 14px; margin: 0;">
+              Need help? Contact our support team at 
+              <a href="mailto:ecouter.transcribe@gmail.com" style="color: #4f46e5; text-decoration: none;">
+                ecouter.transcribe@gmail.com
+              </a>
+            </p>
           </div>
         </div>
-      </body>
-      </html>
-    `,
-    text: `Password Reset Request
-    
-Hello ${userName},
 
-We received a request to reset your password. Please visit the following link to create a new password:
+        <!-- Footer -->
+        <div style="background: #f9fafb; padding: 20px; text-align: center; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
+          <p style="margin: 0; color: #6b7280; font-size: 14px;">
+            🌐 <a href="https://ecouter.systems" style="color: #4f46e5;">ecouter.systems</a> | 
+            📧 <a href="mailto:ecouter.transcribe@gmail.com" style="color: #4f46e5;">ecouter.transcribe@gmail.com</a>
+          </p>
+          <p style="margin: 10px 0 0 0; color: #9ca3af; font-size: 12px;">
+            This email was sent because a password reset was requested for your account.
+          </p>
+        </div>
+      </div>
+    `,
+    text: `Password Reset Request - Ecouter
+
+Hello ${userName || 'User'},
+
+We received a request to reset your password for your Ecouter account. Please visit the following link to create a new password:
 
 ${resetLink}
 
-If you didn't request this password reset, please ignore this email. Your password will remain unchanged.
+🔒 Security Information:
+- This link will expire in 1 hour for security
+- The link can only be used once  
+- If you didn't request this, please ignore this email
 
-This link will expire in 1 hour for security reasons.
+Need help? Contact our support team at ecouter.transcribe@gmail.com
 
 Best regards,
-The Ecouter Transcribe Team`
+The Ecouter Team
+
+---
+This email was sent because a password reset was requested for your account.
+ecouter.systems | ecouter.transcribe@gmail.com`
   };
 }
 

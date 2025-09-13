@@ -16,6 +16,7 @@ import {
   getAvailableFeatures,
   getLanguageCodeFromAssemblyCode
 } from '../../utils/languages.js';
+import { processTranscript } from '../../utils/transcript-processing.js';
 
 export const config = {
   api: {
@@ -176,6 +177,7 @@ export default async function handler(req, res) {
       includeTimestamps: fields.includeTimestamps?.[0] === 'true',
       filterProfanity: fields.filterProfanity?.[0] === 'true',
       autoPunctuation: fields.autoPunctuation?.[0] === 'true',
+      verbatimTranscription: fields.verbatimTranscription?.[0] === 'true',
     };
 
     console.log('⚙️ Enhanced Gladia transcription settings:', settings);
@@ -477,13 +479,25 @@ async function pollGladiaTranscriptionStatus(fileId, transcriptId, resultUrl, se
         console.log('📝 Generating summary...');
         const summaryResult = await generateSummary(transcriptText, detectedLanguage);
 
+        // Apply verbatim/non-verbatim processing based on user preference
+        console.log(`🎯 Processing transcript: ${settings.verbatimTranscription ? 'Verbatim' : 'Non-Verbatim'} mode`);
+        const finalTranscript = processTranscript(transcriptText, settings.verbatimTranscription);
+        
+        // Log the difference if non-verbatim was applied
+        if (!settings.verbatimTranscription && finalTranscript !== transcriptText) {
+          const originalLength = transcriptText.length;
+          const cleanedLength = finalTranscript.length;
+          const reduction = Math.round(((originalLength - cleanedLength) / originalLength) * 100);
+          console.log(`✨ Non-verbatim cleaning: ${originalLength} -> ${cleanedLength} chars (${reduction}% reduction)`);
+        }
+
         // Update database with results
         await db.collection('files').updateOne(
           { _id: new ObjectId(fileId) },
           {
             $set: {
               status: 'completed',
-              transcript: transcriptText,
+              transcript: finalTranscript,
               summary: summaryResult.summary,
               topic: summaryResult.topic,
               topics: summaryResult.topics,
@@ -491,7 +505,7 @@ async function pollGladiaTranscriptionStatus(fileId, transcriptId, resultUrl, se
               speakers,
               timestamps,
               duration: transcriptionResult.metadata?.audio_duration || 0,
-              wordCount: transcriptionResult.words?.length || 0,
+              wordCount: finalTranscript.split(/\s+/).length,
               language: detectedLanguage,
               provider: 'gladia',
               confidence: transcriptionResult.metadata?.confidence || null,

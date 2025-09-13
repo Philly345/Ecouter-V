@@ -23,12 +23,23 @@ export default async function handler(req, res) {
       // Get files based on query parameters
       const { status, limit = 10, offset = 0 } = req.query;
       
-      const { db } = await connectDB();
+      try {
+        const connection = await connectDB();
+        if (!connection || !connection.db) {
+          throw new Error('Failed to establish database connection');
+        }
+        const { db } = connection;
       
       // Build MongoDB query
       let query = { userId: userId };
       if (status) {
-        query.status = status;
+        // Handle multiple status values separated by comma
+        if (status.includes(',')) {
+          const statusList = status.split(',').map(s => s.trim());
+          query.status = { $in: statusList };
+        } else {
+          query.status = status;
+        }
       }
       
       // Get files from MongoDB
@@ -58,21 +69,29 @@ export default async function handler(req, res) {
       const storageUsed = storageAggregation.length > 0 ? storageAggregation[0].totalSize : 0;
       const storageLimit = 1024 * 1024 * 1024; // 1GB in bytes
       
-      res.status(200).json({
-        success: true,
-        files: formattedFiles,
-        pagination: {
-          total: totalFiles,
-          limit: parseInt(limit),
-          offset: parseInt(offset),
-          hasMore: totalFiles > parseInt(offset) + parseInt(limit),
-        },
-        storage: {
-          used: storageUsed,
-          limit: storageLimit,
-          percentage: Math.round((storageUsed / storageLimit) * 100),
-        },
-      });
+        res.status(200).json({
+          success: true,
+          files: formattedFiles,
+          pagination: {
+            total: totalFiles,
+            limit: parseInt(limit),
+            offset: parseInt(offset),
+            hasMore: totalFiles > parseInt(offset) + parseInt(limit),
+          },
+          storage: {
+            used: storageUsed,
+            limit: storageLimit,
+            percentage: Math.round((storageUsed / storageLimit) * 100),
+          },
+        });
+        
+      } catch (dbError) {
+        console.error('Database error in files API:', dbError);
+        return res.status(500).json({ 
+          error: 'Database connection failed', 
+          message: dbError.message 
+        });
+      }
       
     } else {
       res.status(405).json({ error: 'Method not allowed' });

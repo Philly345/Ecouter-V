@@ -8,6 +8,7 @@ import {
   getLanguageForAI,
   getAvailableFeatures 
 } from '../../../utils/languages.js';
+import { processTranscript } from '../../../utils/transcript-processing.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -41,7 +42,8 @@ export default async function handler(req, res) {
       speakerIdentification = false,
       includeTimestamps = true,
       filterProfanity = false,
-      autoPunctuation = true
+      autoPunctuation = true,
+      verbatimTranscription = false
     } = req.body;
 
     if (!fileName || !fileSize || !fileType || !fileUrl || !fileKey) {
@@ -56,6 +58,7 @@ export default async function handler(req, res) {
       includeTimestamps: includeTimestamps === 'true' || includeTimestamps === true,
       filterProfanity: filterProfanity === 'true' || filterProfanity === true,
       autoPunctuation: autoPunctuation === 'true' || autoPunctuation === true,
+      verbatimTranscription: verbatimTranscription === 'true' || verbatimTranscription === true,
     };
 
     console.log('⚙️ Transcription settings:', settings);
@@ -258,12 +261,25 @@ async function pollTranscriptionStatus(fileId, transcriptId, settings) {
             }));
         }
         const summaryResult = await generateSummary(transcriptText, settings.language);
+        
+        // Apply verbatim/non-verbatim processing based on user preference
+        console.log(`🎯 Processing transcript: ${settings.verbatimTranscription ? 'Verbatim' : 'Non-Verbatim'} mode`);
+        const finalTranscript = processTranscript(transcriptText, settings.verbatimTranscription);
+        
+        // Log the difference if non-verbatim was applied
+        if (!settings.verbatimTranscription && finalTranscript !== transcriptText) {
+          const originalLength = transcriptText.length;
+          const cleanedLength = finalTranscript.length;
+          const reduction = Math.round(((originalLength - cleanedLength) / originalLength) * 100);
+          console.log(`✨ Non-verbatim cleaning: ${originalLength} -> ${cleanedLength} chars (${reduction}% reduction)`);
+        }
+        
         await db.collection('files').updateOne(
           { _id: new ObjectId(fileId) },
           { 
             $set: { 
               status: 'completed',
-              transcript: transcriptText,
+              transcript: finalTranscript,
               summary: summaryResult.summary,
               topic: summaryResult.topic,
               topics: summaryResult.topics,

@@ -227,7 +227,9 @@ export function getLanguageName(languageCode) {
 
 // MYMEMORY Translation API (Free, more reliable than Google Translate)
 export async function translateText(text, targetLanguage, sourceLanguage = 'en') {
-  if (targetLanguage === sourceLanguage || targetLanguage === 'en') {
+  // Only skip translation if source and target are the same
+  if (targetLanguage === sourceLanguage) {
+    console.log(`⏭️ Skipping translation: source and target are both ${sourceLanguage}`);
     return text; // No translation needed
   }
 
@@ -245,32 +247,69 @@ export async function translateText(text, targetLanguage, sourceLanguage = 'en')
       const chunk = chunks[i];
       console.log(`🔄 Translating chunk ${i + 1}/${chunks.length} (${chunk.length} chars)`);
       
-      // Build MYMEMORY API URL
-      let url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(chunk)}&langpair=${sourceLanguage}|${targetLanguage}`;
+      let success = false;
+      let attempts = 0;
+      const maxAttempts = 3;
       
-      // Add email if available (increases daily quota)
-      if (email) {
-        url += `&de=${encodeURIComponent(email)}`;
+      while (!success && attempts < maxAttempts) {
+        attempts++;
+        
+        try {
+          // Build MYMEMORY API URL
+          let url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(chunk)}&langpair=${sourceLanguage}|${targetLanguage}`;
+          
+          // Add email if available (increases daily quota)
+          if (email) {
+            url += `&de=${encodeURIComponent(email)}`;
+          }
+          
+          const response = await fetch(url);
+          
+          if (response.ok) {
+            const data = await response.json();
+            
+            // Check for rate limit in response
+            if (data && data.responseStatus === 429) {
+              console.log(`Rate limit hit for chunk ${i + 1}, attempt ${attempts}/${maxAttempts}`);
+              if (attempts < maxAttempts) {
+                const waitTime = Math.min(2000 * attempts, 8000); // 2s, 4s, 8s
+                console.log(`⏳ Waiting ${waitTime}ms before retry...`);
+                await new Promise(resolve => setTimeout(resolve, waitTime));
+                continue;
+              }
+            }
+            
+            // MYMEMORY returns: { responseData: { translatedText: "..." }, responseStatus: 200 }
+            if (data && data.responseData && data.responseData.translatedText) {
+              const translatedText = data.responseData.translatedText;
+              translatedChunks.push(translatedText);
+              console.log(`✅ Chunk ${i + 1} translated successfully`);
+              success = true;
+            } else {
+              console.warn('Unexpected MYMEMORY response format:', data);
+              translatedChunks.push(chunk); // Use original text if format is unexpected
+              success = true;
+            }
+          } else if (response.status === 429) {
+            console.log(`Rate limit hit for chunk ${i + 1}, attempt ${attempts}/${maxAttempts}`);
+            if (attempts < maxAttempts) {
+              const waitTime = Math.min(2000 * attempts, 8000);
+              console.log(`⏳ Waiting ${waitTime}ms before retry...`);
+              await new Promise(resolve => setTimeout(resolve, waitTime));
+              continue;
+            }
+          } else {
+            console.warn('MYMEMORY request failed:', response.status, response.statusText);
+            break; // Exit retry loop and try fallback
+          }
+        } catch (fetchError) {
+          console.error(`Translation attempt ${attempts} failed:`, fetchError);
+          if (attempts >= maxAttempts) break;
+        }
       }
       
-      const response = await fetch(url);
-      
-      if (response.ok) {
-        const data = await response.json();
-        
-        // MYMEMORY returns: { responseData: { translatedText: "..." }, responseStatus: 200 }
-        if (data && data.responseData && data.responseData.translatedText) {
-          const translatedText = data.responseData.translatedText;
-          translatedChunks.push(translatedText);
-          console.log(`✅ Chunk ${i + 1} translated successfully`);
-        } else {
-          console.warn('Unexpected MYMEMORY response format:', data);
-          translatedChunks.push(chunk); // Use original text if format is unexpected
-        }
-      } else {
-        console.warn('MYMEMORY request failed:', response.status, response.statusText);
-        
-        // Try fallback to Google Translate for this chunk
+      // If all attempts failed, try Google Translate fallback
+      if (!success) {
         try {
           console.log('🔄 Trying Google Translate fallback...');
           const googleUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sourceLanguage}&tl=${targetLanguage}&dt=t&q=${encodeURIComponent(chunk)}`;
@@ -283,9 +322,11 @@ export async function translateText(text, targetLanguage, sourceLanguage = 'en')
               translatedChunks.push(translatedText);
               console.log(`✅ Chunk ${i + 1} translated with Google fallback`);
             } else {
+              console.warn(`Google fallback returned unexpected format for chunk ${i + 1}`);
               translatedChunks.push(chunk);
             }
           } else {
+            console.warn(`Google fallback failed with status ${googleResponse.status} for chunk ${i + 1}`);
             translatedChunks.push(chunk);
           }
         } catch (fallbackError) {
@@ -294,9 +335,9 @@ export async function translateText(text, targetLanguage, sourceLanguage = 'en')
         }
       }
       
-      // Add delay to respect rate limits (MYMEMORY allows ~100 requests per day for free users)
+      // Add delay to respect rate limits
       if (i < chunks.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 200));
+        await new Promise(resolve => setTimeout(resolve, 500)); // Increased delay
       }
     }
 

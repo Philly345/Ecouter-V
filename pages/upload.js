@@ -1,5 +1,5 @@
 import Head from 'next/head';
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { useDropzone } from 'react-dropzone';
 import Sidebar from '../components/Sidebar';
@@ -25,6 +25,8 @@ import { SUPPORTED_LANGUAGES } from '../utils/languages';
 export default function Upload() {
   const router = useRouter();
   const { user, logout, loading: authLoading, authChecked } = useAuth();
+  const dropdownRef = useRef(null);
+  const searchInputRef = useRef(null);
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploading, setUploading] = useState(false);
@@ -32,6 +34,8 @@ export default function Upload() {
   const [showFormats, setShowFormats] = useState(false);
   const [processingEstimate, setProcessingEstimate] = useState('~1 min');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
+  const [languageSearchTerm, setLanguageSearchTerm] = useState('');
   const [settings, setSettings] = useState({
     language: 'en',
     quality: 'standard',
@@ -39,7 +43,59 @@ export default function Upload() {
     includeTimestamps: true,
     filterProfanity: false,
     autoPunctuation: true,
+    verbatimTranscription: true, // true = verbatim (exact), false = non-verbatim (clean)
   });
+
+  // Get language name helper function
+  const getLanguageName = (code) => {
+    const lang = SUPPORTED_LANGUAGES.find(l => l.code === code);
+    return lang ? lang.name : 'English';
+  };
+
+  // Filter languages based on search term
+  const filteredLanguages = SUPPORTED_LANGUAGES.filter(lang =>
+    lang.name.toLowerCase().includes(languageSearchTerm.toLowerCase()) ||
+    lang.code.toLowerCase().includes(languageSearchTerm.toLowerCase())
+  );
+
+  // Get popular languages (filtered if search term exists)
+  const popularLanguages = languageSearchTerm 
+    ? filteredLanguages.slice(0, 12)
+    : SUPPORTED_LANGUAGES.slice(0, 12);
+
+  // Click outside handler
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowLanguageDropdown(false);
+        setLanguageSearchTerm(''); // Reset search when closing
+      }
+    };
+
+    const handleEscapeKey = (event) => {
+      if (event.key === 'Escape' && showLanguageDropdown) {
+        setShowLanguageDropdown(false);
+        setLanguageSearchTerm('');
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscapeKey);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscapeKey);
+    };
+  }, [showLanguageDropdown]);
+
+  // Auto-focus search input when dropdown opens
+  useEffect(() => {
+    if (showLanguageDropdown && searchInputRef.current) {
+      // Small delay to ensure the dropdown is rendered
+      setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 100);
+    }
+  }, [showLanguageDropdown]);
 
   useEffect(() => {
     // Only redirect if auth check is complete and no user found
@@ -234,6 +290,7 @@ export default function Upload() {
         includeTimestamps: settings.includeTimestamps,
         filterProfanity: settings.filterProfanity,
         autoPunctuation: settings.autoPunctuation,
+        verbatimTranscription: settings.verbatimTranscription,
       }),
     });
 
@@ -260,6 +317,7 @@ export default function Upload() {
     formData.append('includeTimestamps', settings.includeTimestamps);
     formData.append('filterProfanity', settings.filterProfanity);
     formData.append('autoPunctuation', settings.autoPunctuation);
+    formData.append('verbatimTranscription', settings.verbatimTranscription);
 
     // Choose API endpoint based on quality setting
     const endpoint = settings.quality === 'enhanced' ? '/api/transcribe-gladia' : '/api/transcribe';
@@ -484,31 +542,110 @@ export default function Upload() {
                   </div>
                 
                   <div className="space-y-4">
-                    <div>
+                    <div className="relative" ref={dropdownRef}>
                       <label className="block text-sm mb-1.5">Language</label>
-                      <select 
-                        value={settings.language}
-                        onChange={(e) => setSettings({...settings, language: e.target.value})}
-                        className="w-full bg-white/10 rounded-lg border border-white/10 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        style={{
-                          backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                          color: 'white'
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowLanguageDropdown(!showLanguageDropdown);
+                          if (!showLanguageDropdown) {
+                            setLanguageSearchTerm(''); // Reset search when opening
+                          }
                         }}
+                        className="w-full bg-white/10 rounded-lg border border-white/10 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center justify-between"
                       >
-                        {SUPPORTED_LANGUAGES.map(lang => (
-                          <option 
-                            key={lang.code} 
-                            value={lang.code}
-                            className="bg-gray-800 text-white"
-                            style={{
-                              backgroundColor: '#1f2937',
-                              color: 'white'
-                            }}
-                          >
-                            {lang.name}
-                          </option>
-                        ))}
-                      </select>
+                        <span>{getLanguageName(settings.language)}</span>
+                        <svg className={`w-4 h-4 transition-transform ${
+                          showLanguageDropdown ? 'rotate-180' : ''
+                        }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+
+                      {showLanguageDropdown && (
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-black border border-white/20 rounded-lg shadow-lg z-20 max-h-96 overflow-hidden">
+                          <div className="p-3">
+                            <div className="text-xs text-white/60 mb-3">Select Language:</div>
+                            
+                            {/* Search Input */}
+                            <div className="mb-3">
+                              <input
+                                ref={searchInputRef}
+                                type="text"
+                                placeholder="Search languages..."
+                                value={languageSearchTerm}
+                                onChange={(e) => setLanguageSearchTerm(e.target.value)}
+                                className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded text-sm text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                autoComplete="off"
+                              />
+                            </div>
+                            
+                            {/* Popular Languages Section - only show if no search term */}
+                            {!languageSearchTerm && (
+                              <div className="mb-3">
+                                <div className="text-xs text-white/40 mb-2">Popular Languages</div>
+                                <div className="grid grid-cols-2 gap-1">
+                                  {popularLanguages.map((lang) => (
+                                    <button
+                                      key={lang.code}
+                                      onClick={() => {
+                                        setSettings({...settings, language: lang.code});
+                                        setShowLanguageDropdown(false);
+                                        setLanguageSearchTerm('');
+                                      }}
+                                      className={`text-left px-2 py-1.5 text-xs rounded transition-colors ${
+                                        settings.language === lang.code
+                                          ? 'bg-white/20 text-white'
+                                          : 'hover:bg-white/10 text-white/80'
+                                      }`}
+                                      title={lang.name}
+                                    >
+                                      {settings.language === lang.code && '✓ '}{lang.name}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {!languageSearchTerm && <hr className="border-white/10 my-2" />}
+
+                            {/* All Languages Section */}
+                            <div>
+                              <div className="text-xs text-white/40 mb-2">
+                                {languageSearchTerm ? `Search Results (${filteredLanguages.length})` : `All Languages (${SUPPORTED_LANGUAGES.length})`}
+                              </div>
+                              <div className="max-h-64 overflow-y-auto custom-scrollbar">
+                                {(languageSearchTerm ? filteredLanguages : SUPPORTED_LANGUAGES).length > 0 ? (
+                                  (languageSearchTerm ? filteredLanguages : SUPPORTED_LANGUAGES).map((lang) => (
+                                    <button
+                                      key={lang.code}
+                                      onClick={() => {
+                                        setSettings({...settings, language: lang.code});
+                                        setShowLanguageDropdown(false);
+                                        setLanguageSearchTerm('');
+                                      }}
+                                      className={`w-full text-left px-3 py-2 text-sm rounded flex justify-between items-center transition-colors hover:bg-white/10 ${
+                                        settings.language === lang.code
+                                          ? 'bg-white/20 text-white'
+                                          : 'text-white/80'
+                                      }`}
+                                    >
+                                      <span>{settings.language === lang.code && '✓ '}{lang.name}</span>
+                                      {lang.needsTranslation && (
+                                        <span className="text-xs text-white/40">via EN</span>
+                                      )}
+                                    </button>
+                                  ))
+                                ) : (
+                                  <div className="text-center py-4 text-white/40 text-sm">
+                                    No languages found matching "{languageSearchTerm}"
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <div>
@@ -541,6 +678,49 @@ export default function Upload() {
                           </div>
                           <div className="text-[10px] text-white/60">AI Auto-Correction</div>
                         </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm mb-1.5">Transcription Style</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setSettings({...settings, verbatimTranscription: true})}
+                          className={`px-2 py-1 text-xs rounded border ${
+                            settings.verbatimTranscription 
+                              ? 'bg-white/20 border-white/30 text-white' 
+                              : 'bg-white/5 border-white/10 text-white/80 hover:bg-white/10'
+                          }`}
+                        >
+                          <div>Verbatim</div>
+                          <div className="text-[10px] text-white/60">Exact Speech</div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSettings({...settings, verbatimTranscription: false})}
+                          className={`px-2 py-1 text-xs rounded border ${
+                            !settings.verbatimTranscription 
+                              ? 'bg-white/20 border-white/30 text-white' 
+                              : 'bg-white/5 border-white/10 text-white/80 hover:bg-white/10'
+                          }`}
+                        >
+                          <div>Non-Verbatim</div>
+                          <div className="text-[10px] text-white/60">Clean & Readable</div>
+                        </button>
+                      </div>
+                      <div className="mt-2 p-2 bg-white/5 rounded-lg">
+                        <div className="text-xs text-white/60">
+                          {settings.verbatimTranscription ? (
+                            <>
+                              <strong>Verbatim:</strong> Includes all filler words (um, uh), repetitions, hesitations, and non-verbal sounds exactly as spoken.
+                            </>
+                          ) : (
+                            <>
+                              <strong>Non-Verbatim:</strong> Removes filler words, repetitions, and false starts for cleaner, more readable text.
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>

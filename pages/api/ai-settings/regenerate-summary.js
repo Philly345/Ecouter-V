@@ -110,11 +110,56 @@ async function generateSummary(text) {
     
     console.log(`Processing transcript of ${truncatedText.length} characters`);
     
-    // Using optimized prompt format for OpenAI
+    // Using optimized prompt format for AI
     const summaryPrompt = `Analyze this transcript:\n\n"${truncatedText}"\n\nProvide:\n1. SUMMARY: A 2-3 sentence summary.\n2. TOPICS: 3-5 main topics, comma-separated.\n3. INSIGHTS: 1-2 key insights.\n\nFormat your response exactly like this:\nSUMMARY: [Your summary]\nTOPICS: [topic1, topic2]\nINSIGHTS: [Your insights]`;
     
+    // Try Gemini first
+    if (process.env.GEMINI_API_KEY) {
+      console.log('🚀 Trying Gemini first...');
+      try {
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [{
+                parts: [{ text: summaryPrompt }]
+              }],
+              generationConfig: {
+                temperature: 0.7,
+                maxOutputTokens: 1024
+              }
+            })
+          }
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+          
+          if (generatedText) {
+            const summaryMatch = generatedText.match(/SUMMARY:\s*(.+?)(?=TOPICS:|$)/s);
+            const topicsMatch = generatedText.match(/TOPICS:\s*(.+?)(?=INSIGHTS:|$)/s);
+            const insightsMatch = generatedText.match(/INSIGHTS:\s*(.+?)$/s);
+            
+            console.log('✅ Gemini summary generated successfully');
+            return {
+              summary: summaryMatch ? summaryMatch[1].trim() : 'Summary not available.',
+              topics: topicsMatch ? topicsMatch[1].trim().split(",").map(t => t.trim()).filter(Boolean) : [],
+              topic: topicsMatch ? topicsMatch[1].trim().split(",")[0].trim() : 'General',
+              insights: insightsMatch ? insightsMatch[1].trim() : 'No insights generated.'
+            };
+          }
+        }
+      } catch (geminiError) {
+        console.log('⚠️ Gemini failed, falling back to OpenAI:', geminiError.message);
+      }
+    }
+    
+    // Fallback to OpenAI free model
+    console.log('🔄 Using OpenAI as fallback...');
     // ⚠️ WARNING: Using openai/gpt-oss-20b:free model only - changing this model could incur charges!
-    console.log('Making API request to OpenAI...');
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {

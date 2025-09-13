@@ -21,7 +21,13 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const { db } = await connectDB();
+    const dbConnection = await connectDB();
+    if (!dbConnection || !dbConnection.db) {
+      console.error('❌ Database connection failed');
+      return res.status(500).json({ error: 'Database connection failed' });
+    }
+    
+    const { db } = dbConnection;
     
     // Find files that are stuck in processing status for more than 10 minutes
     const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);

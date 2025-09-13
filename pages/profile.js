@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '../components/AuthContext';
 import Sidebar from '../components/Sidebar';
+import NotificationCenter from '../components/notifications/NotificationCenter';
 import { FiEdit2, FiSave, FiX, FiCamera, FiTrash2, FiEye, FiEyeOff, FiUser, FiMail, FiCalendar, FiGlobe, FiCheck } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 
@@ -393,16 +394,21 @@ export default function Profile() {
               <h1 className="text-2xl font-bold gradient-text mb-2">Profile Settings</h1>
               <p className="text-white/60">Manage your account settings and preferences</p>
             </div>
-            {hasUnsavedChanges && (
-              <button
-                onClick={handleSaveAllChanges}
-                disabled={loading}
-                className="px-4 py-2 bg-white hover:bg-gray-100 text-black rounded-lg transition-all disabled:opacity-50 font-medium shadow-sm text-sm flex items-center space-x-2"
-              >
-                <FiCheck className="w-4 h-4" />
-                <span>Save Changes</span>
-              </button>
-            )}
+            <div className="flex items-center space-x-4">
+              {/* Notification Center */}
+              <NotificationCenter user={user} />
+              
+              {hasUnsavedChanges && (
+                <button
+                  onClick={handleSaveAllChanges}
+                  disabled={loading}
+                  className="px-4 py-2 bg-white hover:bg-gray-100 text-black rounded-lg transition-all disabled:opacity-50 font-medium shadow-sm text-sm flex items-center space-x-2"
+                >
+                  <FiCheck className="w-4 h-4" />
+                  <span>Save Changes</span>
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Top Row - Profile Overview */}

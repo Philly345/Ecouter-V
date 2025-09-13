@@ -39,8 +39,21 @@ export default async function handler(req, res) {
     });
 
     // Find user in MongoDB using the userId from token
-    const { db } = await connectDB();
-    console.log('📡 Dashboard API: Connected to MongoDB');
+    let db;
+    try {
+      const connection = await connectDB();
+      if (!connection || !connection.db) {
+        throw new Error('Failed to establish database connection');
+      }
+      db = connection.db;
+      console.log('📡 Dashboard API: Connected to MongoDB');
+    } catch (connectionError) {
+      console.error('❌ Dashboard API: MongoDB connection failed:', connectionError);
+      return res.status(500).json({ 
+        error: 'Database connection failed', 
+        message: connectionError.message 
+      });
+    }
     
     const user = await db.collection('users').findOne({ 
       _id: new ObjectId(decoded.userId) 

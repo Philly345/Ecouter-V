@@ -73,11 +73,6 @@ export default async function handler(req, res) {
 
 async function generateAIResponse(message, transcript, context) {
   try {
-    // Check if OpenAI API key is available
-    if (!process.env.OPENAI_API_KEY) {
-      throw new Error('OPENAI_API_KEY is not configured');
-    }
-
     // Create a truncated transcript for the context window
     const maxTranscriptLength = 8000;
     const truncatedTranscript = transcript?.length > maxTranscriptLength 
@@ -101,39 +96,14 @@ User Question: ${message}
 
 Answer:`;
 
-    // ⚠️ WARNING: Using openai/gpt-oss-20b:free model only - changing this model could incur charges!
-    // This is the ONLY free OpenAI model available through OpenRouter
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-        'HTTP-Referer': 'https://ecouter.systems',
-        'X-Title': 'Ecouter Meeting Assistant'
-      },
-      body: JSON.stringify({
-        model: "openai/gpt-oss-20b:free", // ⚠️ FREE MODEL ONLY - DO NOT CHANGE
-        messages: [{ role: "user", content: chatPrompt }],
-        temperature: 0.7,
-        max_tokens: 1024
-      })
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("OpenAI API error:", response.status, errorText);
-      throw new Error(`OpenAI API error: ${response.status}`);
+    // 🎯 PRIORITY ORDER: Gemini → OpenAI (free)
+    try {
+      console.log('🚀 Trying Gemini first for AI chat...');
+      return await generateWithGemini(chatPrompt);
+    } catch (geminiError) {
+      console.log('⚠️ Gemini failed, falling back to OpenAI:', geminiError.message);
+      return await generateWithOpenAI(chatPrompt);
     }
-
-    const data = await response.json();
-    const generatedText = data.choices?.[0]?.message?.content || "";
-    
-    if (!generatedText) {
-      throw new Error("No response generated from OpenAI");
-    }
-
-    // Clean up the response
-    return generatedText.replace(/^Answer:/, '').trim();
 
   } catch (error) {
     console.error('AI response generation error:', error);
@@ -142,9 +112,90 @@ Answer:`;
     if (message.toLowerCase().includes('summary') || message.toLowerCase().includes('recap')) {
       return "I'm currently unable to generate an AI summary. Please check the meeting transcript manually for key points and decisions.";
     } else if (message.toLowerCase().includes('action') || message.toLowerCase().includes('todo')) {
-      return "I'm currently unable to identify action items. Please review the meeting transcript to extract next steps and assignments.";
+      return "I'm currently unable to identify action items. Please review the transcript for any mentioned tasks or follow-ups.";
+    } else if (message.toLowerCase().includes('decision') || message.toLowerCase().includes('conclusion')) {
+      return "I'm currently unable to analyze decisions. Please review the transcript for any concluded discussions or agreements.";
     } else {
-      return "I'm currently unable to process your question with AI. Please refer to the meeting transcript for the information you need.";
+      return "I'm currently unable to process your request. Please try again later or review the transcript directly.";
     }
   }
+}
+
+async function generateWithGemini(chatPrompt) {
+  if (!process.env.GEMINI_API_KEY) {
+    throw new Error('Gemini API key not configured');
+  }
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        contents: [{ parts: [{ text: chatPrompt }] }],
+        generationConfig: {
+          temperature: 0.7,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 1024,
+        }
+      })
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
+  }
+
+  const data = await response.json();
+  const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  
+  if (!generatedText) {
+    throw new Error('Empty response from Gemini');
+  }
+  
+  console.log('✅ Gemini chat response generated successfully');
+  return generatedText.replace(/^Answer:/, '').trim();
+}
+
+async function generateWithOpenAI(chatPrompt) {
+  // Check if OpenAI API key is available
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error('OPENAI_API_KEY is not configured');
+  }
+
+  // ⚠️ WARNING: Using openai/gpt-oss-20b:free model only - changing this model could incur charges!
+  // This is the ONLY free OpenAI model available through OpenRouter
+  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+      'HTTP-Referer': 'https://ecouter.systems',
+      'X-Title': 'Ecouter Meeting Assistant'
+    },
+    body: JSON.stringify({
+      model: "openai/gpt-oss-20b:free", // ⚠️ FREE MODEL ONLY - DO NOT CHANGE
+      messages: [{ role: "user", content: chatPrompt }],
+      temperature: 0.7,
+      max_tokens: 1024
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("OpenAI API error:", response.status, errorText);
+    throw new Error(`OpenAI API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  const generatedText = data.choices?.[0]?.message?.content || "";
+  
+  if (!generatedText) {
+    throw new Error("No response generated from OpenAI");
+  }
+
+  // Clean up the response
+  return generatedText.replace(/^Answer:/, '').trim();
 }

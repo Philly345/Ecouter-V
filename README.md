@@ -48,6 +48,16 @@
 - **Performance Monitoring**: Vercel Speed Insights for Core Web Vitals tracking
 - **International SEO**: Optimized for global reach with 11-language support
 
+### 🤝 **Real-Time Collaboration**
+- **Live Collaboration**: Work together in real-time with WebSocket-powered editing
+- **Team Invitations**: Invite team members via email with customizable permissions
+- **Permission Management**: Control access levels (View, Comment, Edit, Owner)
+- **Presence Indicators**: See who's online and editing in real-time
+- **Comment System**: Add comments, assign tasks, and mention team members
+- **Version History**: Track all changes with detailed version control
+- **Conflict Resolution**: Automatic handling of simultaneous edits
+- **Email Notifications**: Automated invitation and notification system
+
 ### 🎯 **Specialized Tools**
 - **AI Settings**: Manage AI-powered features and summary quality optimization
 - **Storage Management**: Track usage across cloud storage providers
@@ -88,6 +98,16 @@ GOOGLE_CLIENT_SECRET=your_google_oauth_client_secret
 R2_ACCOUNT_ID=your_cloudflare_r2_account_id
 R2_ACCESS_KEY_ID=your_r2_access_key
 R2_SECRET_ACCESS_KEY=your_r2_secret_key
+
+# Real-Time Collaboration (NEW!)
+EMAIL_SERVICE_ENABLED=true
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
+SMTP_FROM=your-email@gmail.com
+NEXT_PUBLIC_BASE_URL=http://localhost:3000
 R2_BUCKET_NAME=your_bucket_name
 
 # Optional Features

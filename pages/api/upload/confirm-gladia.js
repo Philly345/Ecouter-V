@@ -8,6 +8,7 @@ import {
   getLanguageForAI,
   getAvailableFeatures 
 } from '../../../utils/languages.js';
+import { processTranscript } from '../../../utils/transcript-processing.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -41,7 +42,8 @@ export default async function handler(req, res) {
       speakerIdentification = false,
       includeTimestamps = true,
       filterProfanity = false,
-      autoPunctuation = true
+      autoPunctuation = true,
+      verbatimTranscription = false
     } = req.body;
 
     if (!fileName || !fileSize || !fileType || !fileUrl || !fileKey) {
@@ -56,6 +58,7 @@ export default async function handler(req, res) {
       includeTimestamps: includeTimestamps === 'true' || includeTimestamps === true,
       filterProfanity: filterProfanity === 'true' || filterProfanity === true,
       autoPunctuation: autoPunctuation === 'true' || autoPunctuation === true,
+      verbatimTranscription: verbatimTranscription === 'true' || verbatimTranscription === true,
     };
 
     console.log('⚙️ Enhanced Gladia transcription settings:', settings);
@@ -299,6 +302,17 @@ async function pollGladiaTranscriptionStatus(fileId, transcriptId, resultUrl, se
         // Apply Gemini AI auto-correction for enhanced quality
         console.log('🤖 Applying AI auto-correction for enhanced accuracy...');
         const correctedTranscript = await applyGeminiAutoCorrection(transcriptText, detectedLanguage);
+        // Apply verbatim/non-verbatim processing based on user preference
+        console.log(`🎯 Processing transcript: ${settings.verbatimTranscription ? 'Verbatim' : 'Non-Verbatim'} mode`);
+        const finalTranscript = processTranscript(correctedTranscript, settings.verbatimTranscription);
+        
+        // Log the difference if non-verbatim was applied
+        if (!settings.verbatimTranscription && finalTranscript !== correctedTranscript) {
+          const originalLength = correctedTranscript.length;
+          const cleanedLength = finalTranscript.length;
+          const reduction = Math.round(((originalLength - cleanedLength) / originalLength) * 100);
+          console.log(`✨ Non-verbatim cleaning: ${originalLength} -> ${cleanedLength} chars (${reduction}% reduction)`);
+        }
 
         // Update database with results
         await db.collection('files').updateOne(
@@ -306,8 +320,9 @@ async function pollGladiaTranscriptionStatus(fileId, transcriptId, resultUrl, se
           {
             $set: {
               status: 'completed',
-              transcript: correctedTranscript, // Use AI-corrected transcript
+              transcript: finalTranscript, // Use processed transcript
               originalTranscript: transcriptText, // Keep original for reference
+              correctedTranscript: correctedTranscript, // Keep AI-corrected version
               summary: summaryResult.summary,
               topic: summaryResult.topic,
               topics: summaryResult.topics,
@@ -315,7 +330,7 @@ async function pollGladiaTranscriptionStatus(fileId, transcriptId, resultUrl, se
               speakers,
               timestamps,
               duration: transcriptionResult.metadata?.audio_duration || 0,
-              wordCount: transcriptionResult.words?.length || 0,
+              wordCount: finalTranscript.split(/\s+/).length,
               language: detectedLanguage,
               provider: 'gladia',
               enhanced: true, // Mark as enhanced with AI correction
