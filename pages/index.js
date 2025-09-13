@@ -104,8 +104,8 @@ export default function Home({ user, onLogout }) {
   return (
     <>
       <SEO 
-        title="Transcribe Audio & Video Free with AI | Ecouter - 120+ Languages"
-        description="Transcribe audio and video files for free with AI. Advanced transcription service with speaker identification, sentiment analysis & summaries. Transcribe with AI in 120+ languages instantly."
+        title="Transform Audio into Intelligent Insights | Ecouter - AI Transcription"
+        description="Transform your audio and video into intelligent insights with AI. Advanced transcription with speaker identification, sentiment analysis, summaries and chat features. 120+ languages supported."
         url="https://ecoutertranscribe.tech"
         faqData={faqs.map(faq => ({ question: faq.question, answer: faq.answer }))}
       />
@@ -120,16 +120,16 @@ export default function Home({ user, onLogout }) {
             {/* Main Headline */}
             <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold mb-6 sm:mb-10 text-white leading-tight mobile-heading">
               <div className="mb-1 sm:mb-2">
-                <T>Transcribe Audio & Video with</T>
+                <T>Transform Audio into</T>
               </div>
               <div className="text-gray-200" style={{ minHeight: '1.2em' }}>
-                <T fallback="Free AI Technology">Free AI Technology</T>
+                <T fallback="Intelligent Insights">Intelligent Insights</T>
               </div>
             </h1>
 
             {/* Subtitle */}
             <p className="text-base sm:text-xl md:text-2xl text-gray-400 mb-8 sm:mb-16 max-w-4xl mx-auto leading-relaxed px-2">
-              <T>Free AI transcription service to transcribe audio and video files with speaker identification, sentiment analysis, and intelligent summaries. Transcribe with AI in 120+ languages instantly.</T>
+              <T>Unlock the power of your audio and video content with AI-driven transcription, speaker identification, sentiment analysis, and intelligent summaries. Transform conversations into actionable insights in 120+ languages.</T>
             </p>
 
             {/* CTA Button */}
