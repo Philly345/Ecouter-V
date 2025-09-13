@@ -1,6 +1,6 @@
 import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
-import { connectToDatabase } from '../../lib/mongodb';
+import { connectDB } from '../../lib/mongodb';
 import { ObjectId } from 'mongodb';
 
 const rooms = new Map(); // Track active rooms and users
@@ -28,7 +28,7 @@ export default function handler(req, res) {
       }
 
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      const { db } = await connectToDatabase();
+      const { db } = await connectDB();
       
       const user = await db.collection('users').findOne({ _id: new ObjectId(decoded.userId) });
       if (!user) {
@@ -52,7 +52,7 @@ export default function handler(req, res) {
     // Join collaboration room
     socket.on('join-collaboration', async (fileId) => {
       try {
-        const { db } = await connectToDatabase();
+        const { db } = await connectDB();
         
         // Verify user has access to this file
         const file = await db.collection('files').findOne({
