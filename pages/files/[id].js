@@ -18,10 +18,40 @@ import {
   FiSend,
   FiCpu,
   FiGlobe,
-  FiEdit
+  FiEdit,
+  FiPlay,
+  FiPause,
+  FiSkipForward,
+  FiSkipBack,
+  FiSave,
+  FiX,
+  FiSettings,
+  FiTag,
+  FiFolder,
+  FiHighlight,
+  FiType,
+  FiRotateCcw,
+  FiRotateCw,
+  FiEye,
+  FiEyeOff,
+  FiShare2,
+  FiPlus,
+  FiTrash2,
+  FiChevronDown,
+  FiChevronUp,
+  FiLink,
+  FiBookmark,
+  FiMinus,
+  FiVolume2,
+  FiZap,
+  FiTarget,
+  FiTrendingUp
 } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 // import AnalyticsDashboard from '../../components/AnalyticsDashboardSimple';
+import WordCloudAnalytics from '../../components/analytics/WordCloudAnalytics';
+import SpeakerTalkTimeAnalysis from '../../components/analytics/SpeakerTalkTimeAnalysis';
+import SentimentAnalysis from '../../components/analytics/SentimentAnalysis';
 
 export default function TranscriptView() {
   const router = useRouter();
@@ -45,6 +75,12 @@ export default function TranscriptView() {
   const [chatInput, setChatInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   
+  // Chat History states
+  const [chatHistory, setChatHistory] = useState([]);
+  const [currentChatId, setCurrentChatId] = useState(null);
+  const [showChatHistory, setShowChatHistory] = useState(false);
+  const [chatHistoryLoaded, setChatHistoryLoaded] = useState(false);
+  
   // Chat UX refs
   const chatMessagesRef = useRef(null);
   const chatInputRef = useRef(null);
@@ -54,6 +90,66 @@ export default function TranscriptView() {
   const [isTranslating, setIsTranslating] = useState(false);
   const [showTranslateDropdown, setShowTranslateDropdown] = useState(false);
   const [selectedTranslateLanguage, setSelectedTranslateLanguage] = useState('es');
+
+  // ===== COMPREHENSIVE EDITING FEATURES =====
+  
+  // Edit Mode & Core Editing States
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editedTranscript, setEditedTranscript] = useState('');
+  const [editHistory, setEditHistory] = useState([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  
+  // Audio/Video Controls
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const [showSpeedDropdown, setShowSpeedDropdown] = useState(false);
+  const [waveformData, setWaveformData] = useState([]);
+  const [audioElement, setAudioElement] = useState(null);
+  
+  // Search & Replace
+  const [showSearchReplace, setShowSearchReplace] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [replaceTerm, setReplaceTerm] = useState('');
+  const [searchMatches, setSearchMatches] = useState([]);
+  const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
+  
+  // Speaker Management
+  const [speakers, setSpeakers] = useState({});
+  const [editingSpeaker, setEditingSpeaker] = useState(null);
+  const [speakerColors, setSpeakerColors] = useState({});
+  
+  // Organization & Metadata
+  const [tags, setTags] = useState([]);
+  const [newTag, setNewTag] = useState('');
+  const [showTagInput, setShowTagInput] = useState(false);
+  const [projectFolder, setProjectFolder] = useState('');
+  const [highlights, setHighlights] = useState([]);
+  const [comments, setComments] = useState([]);
+  const [showCommentsPanel, setShowCommentsPanel] = useState(false);
+  
+  // AI Features
+  const [aiSummary, setAiSummary] = useState('');
+  const [detectedTopics, setDetectedTopics] = useState([]);
+  const [actionItems, setActionItems] = useState([]);
+  const [sentimentAnalysis, setSentimentAnalysis] = useState(null);
+  const [showAiPanel, setShowAiPanel] = useState(false);
+  
+  // Export & Sharing
+  const [shareLink, setShareLink] = useState('');
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [versionHistory, setVersionHistory] = useState([]);
+  
+  // Advanced Features
+  const [redactionMode, setRedactionMode] = useState(false);
+  const [redactedRanges, setRedactedRanges] = useState([]);
+  const [collaborators, setCollaborators] = useState([]);
+  
+  // Refs for editing functionality
+  const audioRef = useRef(null);
+  const transcriptRef = useRef(null);
+  const waveformRef = useRef(null);
 
 
   useEffect(() => {
@@ -98,6 +194,430 @@ export default function TranscriptView() {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [exportDropdownOpen]);
+
+  // ===== EDITING FUNCTIONALITY EFFECTS =====
+  
+  // Initialize editing when entering edit mode
+  useEffect(() => {
+    if (isEditMode && file) {
+      setEditedTranscript(file.transcript || '');
+      setEditHistory([file.transcript || '']);
+      setHistoryIndex(0);
+      // Initialize speakers from transcript
+      const speakerMatches = file.transcript?.match(/Speaker \d+/g) || [];
+      const uniqueSpeakers = [...new Set(speakerMatches)];
+      const speakerObj = {};
+      const colorObj = {};
+      const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'];
+      uniqueSpeakers.forEach((speaker, index) => {
+        speakerObj[speaker] = speaker;
+        colorObj[speaker] = colors[index % colors.length];
+      });
+      setSpeakers(speakerObj);
+      setSpeakerColors(colorObj);
+    }
+  }, [isEditMode, file]);
+
+  // Keyboard shortcuts for editing
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (!isEditMode) return;
+      
+      // Audio controls
+      if (e.code === 'Space' && !e.target.matches('input, textarea, [contenteditable]')) {
+        e.preventDefault();
+        togglePlayPause();
+      }
+      if (e.code === 'ArrowLeft' && e.ctrlKey) {
+        e.preventDefault();
+        skipBackward();
+      }
+      if (e.code === 'ArrowRight' && e.ctrlKey) {
+        e.preventDefault();
+        skipForward();
+      }
+      
+      // Editing shortcuts
+      if (e.ctrlKey || e.metaKey) {
+        switch (e.code) {
+          case 'KeyZ':
+            if (e.shiftKey) {
+              e.preventDefault();
+              redoEdit();
+            } else {
+              e.preventDefault();
+              undoEdit();
+            }
+            break;
+          case 'KeyF':
+            e.preventDefault();
+            setShowSearchReplace(true);
+            break;
+          case 'KeyS':
+            e.preventDefault();
+            saveTranscript();
+            break;
+          case 'KeyE':
+            e.preventDefault();
+            setIsEditMode(!isEditMode);
+            break;
+        }
+      }
+    };
+
+    if (isEditMode) {
+      document.addEventListener('keydown', handleKeyDown);
+      return () => document.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [isEditMode, historyIndex, editHistory]);
+
+  // Audio time tracking
+  useEffect(() => {
+    if (audioRef.current) {
+      const audio = audioRef.current;
+      const updateTime = () => setCurrentTime(audio.currentTime);
+      audio.addEventListener('timeupdate', updateTime);
+      return () => audio.removeEventListener('timeupdate', updateTime);
+    }
+  }, [audioRef.current]);
+
+  // Track unsaved changes
+  useEffect(() => {
+    if (isEditMode && file) {
+      setHasUnsavedChanges(editedTranscript !== file.transcript);
+    }
+  }, [editedTranscript, file?.transcript, isEditMode]);
+
+  // ===== COMPREHENSIVE EDITING FUNCTIONS =====
+
+  // Audio/Video Controls
+  const togglePlayPause = () => {
+    if (audioRef.current) {
+      if (isPlaying) {
+        audioRef.current.pause();
+      } else {
+        audioRef.current.play();
+      }
+      setIsPlaying(!isPlaying);
+    }
+  };
+
+  const skipForward = (seconds = 10) => {
+    if (audioRef.current) {
+      audioRef.current.currentTime += seconds;
+    }
+  };
+
+  const skipBackward = (seconds = 10) => {
+    if (audioRef.current) {
+      audioRef.current.currentTime -= seconds;
+    }
+  };
+
+  const changePlaybackSpeed = (speed) => {
+    if (audioRef.current) {
+      audioRef.current.playbackRate = speed;
+      setPlaybackSpeed(speed);
+    }
+    setShowSpeedDropdown(false);
+  };
+
+  const seekToTime = (time) => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = time;
+      setCurrentTime(time);
+    }
+  };
+
+  // Transcript Editing Functions
+  const updateTranscript = (newText) => {
+    // Add to history if significant change
+    if (newText !== editedTranscript) {
+      const newHistory = editHistory.slice(0, historyIndex + 1);
+      newHistory.push(newText);
+      setEditHistory(newHistory);
+      setHistoryIndex(newHistory.length - 1);
+    }
+    setEditedTranscript(newText);
+  };
+
+  const undoEdit = () => {
+    if (historyIndex > 0) {
+      setHistoryIndex(historyIndex - 1);
+      setEditedTranscript(editHistory[historyIndex - 1]);
+    }
+  };
+
+  const redoEdit = () => {
+    if (historyIndex < editHistory.length - 1) {
+      setHistoryIndex(historyIndex + 1);
+      setEditedTranscript(editHistory[historyIndex + 1]);
+    }
+  };
+
+  // Search & Replace Functions
+  const performSearch = (term) => {
+    if (!term || !editedTranscript) return;
+    
+    const regex = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+    const matches = [];
+    let match;
+    
+    while ((match = regex.exec(editedTranscript)) !== null) {
+      matches.push({
+        index: match.index,
+        text: match[0],
+        length: match[0].length
+      });
+    }
+    
+    setSearchMatches(matches);
+    setCurrentMatchIndex(0);
+  };
+
+  const replaceText = (searchTerm, replaceTerm, replaceAll = false) => {
+    if (!searchTerm || !editedTranscript) return;
+    
+    let newText;
+    if (replaceAll) {
+      const regex = new RegExp(searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+      newText = editedTranscript.replace(regex, replaceTerm);
+    } else {
+      // Replace current match only
+      if (searchMatches.length > 0) {
+        const match = searchMatches[currentMatchIndex];
+        newText = editedTranscript.substring(0, match.index) + 
+                 replaceTerm + 
+                 editedTranscript.substring(match.index + match.length);
+      }
+    }
+    
+    if (newText !== editedTranscript) {
+      updateTranscript(newText);
+      performSearch(searchTerm); // Refresh search results
+    }
+  };
+
+  // Speaker Management Functions
+  const updateSpeakerLabel = (oldLabel, newLabel) => {
+    const newSpeakers = { ...speakers };
+    delete newSpeakers[oldLabel];
+    newSpeakers[newLabel] = newLabel;
+    setSpeakers(newSpeakers);
+    
+    // Update transcript with new speaker label
+    const updatedTranscript = editedTranscript.replace(
+      new RegExp(oldLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'),
+      newLabel
+    );
+    updateTranscript(updatedTranscript);
+    setEditingSpeaker(null);
+  };
+
+  const jumpToTimestamp = (timestamp) => {
+    // Parse timestamp (assumes format like "00:01:23")
+    const parts = timestamp.split(':').map(Number);
+    const seconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
+    seekToTime(seconds);
+  };
+
+  // Organization Functions
+  const addTag = (tag) => {
+    if (tag && !tags.includes(tag)) {
+      setTags([...tags, tag]);
+      setNewTag('');
+      setShowTagInput(false);
+    }
+  };
+
+  const removeTag = (tagToRemove) => {
+    setTags(tags.filter(tag => tag !== tagToRemove));
+  };
+
+  const addHighlight = (startIndex, endIndex, color = '#FFFF00') => {
+    const newHighlight = {
+      id: Date.now(),
+      startIndex,
+      endIndex,
+      color,
+      text: editedTranscript.substring(startIndex, endIndex)
+    };
+    setHighlights([...highlights, newHighlight]);
+  };
+
+  const addComment = (text, position) => {
+    const newComment = {
+      id: Date.now(),
+      text,
+      position,
+      timestamp: new Date().toISOString(),
+      author: user?.email || 'Anonymous'
+    };
+    setComments([...comments, newComment]);
+  };
+
+  // AI Features Functions
+  const generateAISummary = async () => {
+    try {
+      const response = await fetch('/api/ai/summarize', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ transcript: editedTranscript })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setAiSummary(data.summary);
+      }
+    } catch (error) {
+      console.error('Failed to generate AI summary:', error);
+      toast.error('Failed to generate AI summary');
+    }
+  };
+
+  const detectTopics = async () => {
+    try {
+      const response = await fetch('/api/ai/topics', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ transcript: editedTranscript })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setDetectedTopics(data.topics);
+      }
+    } catch (error) {
+      console.error('Failed to detect topics:', error);
+    }
+  };
+
+  const extractActionItems = async () => {
+    try {
+      const response = await fetch('/api/ai/action-items', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ transcript: editedTranscript })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setActionItems(data.actionItems);
+      }
+    } catch (error) {
+      console.error('Failed to extract action items:', error);
+    }
+  };
+
+  // Export Functions
+  const exportAsSubtitles = (format = 'srt') => {
+    // Implementation for SRT/VTT export
+    let subtitleContent = '';
+    
+    if (format === 'srt') {
+      // Generate SRT format
+      const lines = editedTranscript.split('\n');
+      lines.forEach((line, index) => {
+        if (line.trim()) {
+          subtitleContent += `${index + 1}\n`;
+          subtitleContent += `00:00:${String(index * 2).padStart(2, '0')},000 --> 00:00:${String((index + 1) * 2).padStart(2, '0')},000\n`;
+          subtitleContent += `${line.trim()}\n\n`;
+        }
+      });
+    }
+    
+    const blob = new Blob([subtitleContent], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${file.name || 'transcript'}.${format}`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const generateShareLink = async () => {
+    try {
+      const response = await fetch('/api/files/share', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ fileId: id, permissions: 'view' })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setShareLink(data.shareUrl);
+        setShowShareModal(true);
+      }
+    } catch (error) {
+      console.error('Failed to generate share link:', error);
+      toast.error('Failed to generate share link');
+    }
+  };
+
+  // Save Functions
+  const saveTranscript = async () => {
+    try {
+      const response = await fetch(`/api/files/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          transcript: editedTranscript,
+          speakers,
+          tags,
+          highlights,
+          comments,
+          metadata: {
+            lastModified: new Date().toISOString(),
+            version: (file.version || 0) + 1
+          }
+        })
+      });
+      
+      if (response.ok) {
+        const updatedFile = await response.json();
+        setFile(updatedFile);
+        setHasUnsavedChanges(false);
+        toast.success('Transcript saved successfully');
+        
+        // Add to version history
+        setVersionHistory([...versionHistory, {
+          version: updatedFile.version,
+          timestamp: new Date().toISOString(),
+          changes: 'Manual edit'
+        }]);
+      }
+    } catch (error) {
+      console.error('Failed to save transcript:', error);
+      toast.error('Failed to save transcript');
+    }
+  };
+
+  const exitEditMode = () => {
+    if (hasUnsavedChanges) {
+      if (window.confirm('You have unsaved changes. Save before exiting?')) {
+        saveTranscript();
+      }
+    }
+    setIsEditMode(false);
+    setEditedTranscript('');
+    setEditHistory([]);
+    setHistoryIndex(-1);
+  };
 
   const fetchTranscriptDetails = async () => {
     try {
@@ -306,6 +826,20 @@ export default function TranscriptView() {
     return `${confidence.toFixed(1)}%`;
   };
   
+  // Function to format AI responses and convert markdown to HTML
+  const formatAIResponse = (text) => {
+    // Convert **bold** to <strong>bold</strong>
+    let formatted = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    
+    // Convert *italic* to <em>italic</em> (only if not already processed as bold)
+    formatted = formatted.replace(/(?<!\*)\*([^*]+?)\*(?!\*)/g, '<em>$1</em>');
+    
+    // Convert simple line breaks to <br>
+    formatted = formatted.replace(/\n/g, '<br>');
+    
+    return formatted;
+  };
+  
   const sendMessage = async () => {
     if (!chatInput.trim() || isTyping) return;
 
@@ -370,6 +904,154 @@ export default function TranscriptView() {
       setIsTyping(false);
     }
   };
+
+  // Chat History Management Functions
+  const loadChatHistory = () => {
+    try {
+      const fileKey = `chat_history_${file?.id || 'unknown'}`;
+      const saved = localStorage.getItem(fileKey);
+      if (saved) {
+        const history = JSON.parse(saved);
+        setChatHistory(history);
+      }
+    } catch (error) {
+      console.error('Failed to load chat history:', error);
+    }
+    setChatHistoryLoaded(true);
+  };
+
+  const saveChatToHistory = () => {
+    if (chatMessages.length === 0) return;
+    
+    try {
+      const chatSession = {
+        id: currentChatId || Date.now().toString(),
+        title: generateChatTitle(chatMessages),
+        messages: chatMessages,
+        timestamp: new Date().toISOString(),
+        fileId: file?.id,
+        fileName: file?.name,
+        messageCount: chatMessages.length
+      };
+
+      const fileKey = `chat_history_${file?.id || 'unknown'}`;
+      const existing = localStorage.getItem(fileKey);
+      let history = existing ? JSON.parse(existing) : [];
+      
+      // Update existing chat or add new one
+      const existingIndex = history.findIndex(chat => chat.id === chatSession.id);
+      if (existingIndex >= 0) {
+        history[existingIndex] = chatSession;
+      } else {
+        history.unshift(chatSession); // Add to beginning
+      }
+      
+      // Keep only last 20 chats per file
+      history = history.slice(0, 20);
+      
+      localStorage.setItem(fileKey, JSON.stringify(history));
+      setChatHistory(history);
+      setCurrentChatId(chatSession.id);
+      
+      toast.success('Chat saved to history!', { autoClose: 2000 });
+    } catch (error) {
+      console.error('Failed to save chat:', error);
+      toast.error('Failed to save chat to history');
+    }
+  };
+
+  const loadChatSession = (chatSession) => {
+    setChatMessages(chatSession.messages);
+    setCurrentChatId(chatSession.id);
+    setShowChatHistory(false);
+    toast.success('Chat loaded!', { autoClose: 2000 });
+  };
+
+  const startNewChat = () => {
+    // Auto-save current chat if it has messages
+    if (chatMessages.length > 0) {
+      saveChatToHistory();
+    }
+    
+    setChatMessages([]);
+    setCurrentChatId(null);
+    setChatInput('');
+    setShowChatHistory(false);
+    
+    // Focus on input
+    setTimeout(() => {
+      if (chatInputRef.current) {
+        chatInputRef.current.focus();
+      }
+    }, 100);
+  };
+
+  const deleteChatSession = (chatId) => {
+    try {
+      const fileKey = `chat_history_${file?.id || 'unknown'}`;
+      const existing = localStorage.getItem(fileKey);
+      if (existing) {
+        let history = JSON.parse(existing);
+        history = history.filter(chat => chat.id !== chatId);
+        localStorage.setItem(fileKey, JSON.stringify(history));
+        setChatHistory(history);
+        toast.success('Chat deleted', { autoClose: 2000 });
+      }
+    } catch (error) {
+      console.error('Failed to delete chat:', error);
+      toast.error('Failed to delete chat');
+    }
+  };
+
+  const generateChatTitle = (messages) => {
+    if (messages.length === 0) return 'New Chat';
+    
+    const firstUserMessage = messages.find(msg => msg.role === 'user');
+    if (firstUserMessage) {
+      const content = firstUserMessage.content;
+      // Take first 50 characters and add ellipsis if longer
+      return content.length > 50 ? content.substring(0, 50) + '...' : content;
+    }
+    
+    return `Chat ${new Date().toLocaleTimeString()}`;
+  };
+
+  const formatChatTimestamp = (timestamp) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diff = now - date;
+    const hours = diff / (1000 * 60 * 60);
+    
+    if (hours < 1) return 'Just now';
+    if (hours < 24) return `${Math.floor(hours)}h ago`;
+    if (hours < 48) return 'Yesterday';
+    return date.toLocaleDateString();
+  };
+
+  // Load chat history when component mounts
+  useEffect(() => {
+    if (file?.id && !chatHistoryLoaded) {
+      loadChatHistory();
+    }
+  }, [file?.id, chatHistoryLoaded]);
+
+  // Auto-save chat periodically
+  useEffect(() => {
+    if (chatMessages.length > 0) {
+      const autoSaveTimer = setTimeout(() => {
+        saveChatToHistory();
+      }, 30000); // Auto-save every 30 seconds
+      
+      return () => clearTimeout(autoSaveTimer);
+    }
+  }, [chatMessages]);
+
+  // Auto-scroll to bottom when new messages are added
+  useEffect(() => {
+    if (chatMessagesRef.current) {
+      chatMessagesRef.current.scrollTop = chatMessagesRef.current.scrollHeight;
+    }
+  }, [chatMessages]);
 
   const copyToClipboard = () => {
     const textToCopy = translatedTranscript || file.transcript || '';
@@ -587,15 +1269,6 @@ export default function TranscriptView() {
                     </div>
                   </div>
                  <div className="flex flex-col sm:flex-row gap-2 md:items-center md:gap-3">
-                   <select 
-                     className="bg-black border border-white/20 rounded-lg px-3 py-2 text-sm min-w-0 flex-shrink-0"
-                     defaultValue="en"
-                   >
-                     <option value="en">English</option>
-                     <option value="es">Spanish</option>
-                     <option value="fr">French</option>
-                     <option value="de">German</option>
-                   </select>
                    <div className="relative export-dropdown">
                      <button 
                        onClick={() => setExportDropdownOpen(!exportDropdownOpen)}
@@ -690,6 +1363,12 @@ export default function TranscriptView() {
                       AI Summary
                     </button>
                     <button
+                      className={`px-4 py-3 text-sm font-medium rounded-t-lg whitespace-nowrap transition-colors ${activeTab === 'analytics' ? 'bg-white text-black' : 'bg-black text-white/70 hover:bg-white/10'}`}
+                      onClick={() => setActiveTab('analytics')}
+                    >
+                      Analytics & Insights
+                    </button>
+                    <button
                       className={`px-4 py-3 text-sm font-medium rounded-t-lg whitespace-nowrap transition-colors ${activeTab === 'timestamps' ? 'bg-white text-black' : 'bg-black text-white/70 hover:bg-white/10'}`}
                       onClick={() => setActiveTab('timestamps')}
                     >
@@ -737,7 +1416,7 @@ export default function TranscriptView() {
                          </button>
                          <button
                            onClick={() => router.push(`/files/edit/${id}`)}
-                           className="py-3 px-4 sm:px-6 bg-black border border-white/20 rounded-lg flex items-center text-sm font-medium hover:bg-white/10 transition-colors justify-center sm:min-w-[120px]"
+                           className="py-3 px-4 sm:px-6 bg-blue-600 hover:bg-blue-700 text-white border border-blue-600 rounded-lg flex items-center text-sm font-medium transition-colors justify-center sm:min-w-[120px]"
                          >
                            <FiEdit className="w-4 h-4 mr-2" />
                            <span>Edit</span>
@@ -1068,6 +1747,25 @@ export default function TranscriptView() {
                   </div>
                 )}
                 
+                {/* Analytics & Insights Tab */}
+                {activeTab === 'analytics' && (
+                  <div className="max-w-7xl mx-auto space-y-8">
+                    <div className="mb-6">
+                      <h2 className="text-xl font-semibold text-white mb-2">Analytics & Insights</h2>
+                      <p className="text-sm text-white/60">Comprehensive analysis of your transcript including word patterns, speaker contributions, and emotional tone.</p>
+                    </div>
+                    
+                    {/* Word Cloud Analytics */}
+                    <WordCloudAnalytics transcript={file.transcript} />
+                    
+                    {/* Speaker Talk Time Analysis */}
+                    <SpeakerTalkTimeAnalysis transcript={file.transcript} />
+                    
+                    {/* Sentiment Analysis */}
+                    <SentimentAnalysis transcript={file.transcript} />
+                  </div>
+                )}
+                
                 {/* File Details Tab */}
                 {activeTab === 'file-details' && (
                   <div className="max-w-5xl mx-auto">
@@ -1129,8 +1827,104 @@ export default function TranscriptView() {
                             <FiMessageSquare className="w-5 h-5 mr-2 text-white/60" />
                             <h3 className="text-lg font-medium">Chat with AI</h3>
                           </div>
-                          <div className="text-xs text-white/60">
-                            Powered by Gemini 2.5 Pro
+                          <div className="flex items-center space-x-3">
+                            {/* Chat Controls */}
+                            <div className="flex items-center space-x-2">
+                              <button
+                                onClick={startNewChat}
+                                className="flex items-center space-x-1 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white text-xs rounded-lg transition-colors"
+                                title="Start New Chat"
+                              >
+                                <FiPlus className="w-3 h-3" />
+                                <span>New</span>
+                              </button>
+                              
+                              {chatMessages.length > 0 && (
+                                <button
+                                  onClick={saveChatToHistory}
+                                  className="flex items-center space-x-1 px-3 py-1.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 text-xs rounded-lg transition-colors"
+                                  title="Save Chat"
+                                >
+                                  <FiSave className="w-3 h-3" />
+                                  <span>Save</span>
+                                </button>
+                              )}
+                              
+                              <div className="relative">
+                                <button
+                                  onClick={() => setShowChatHistory(!showChatHistory)}
+                                  className={`flex items-center space-x-1 px-3 py-1.5 ${
+                                    showChatHistory ? 'bg-white/20' : 'bg-white/10 hover:bg-white/20'
+                                  } text-white text-xs rounded-lg transition-colors`}
+                                  title="Chat History"
+                                >
+                                  <FiClock className="w-3 h-3" />
+                                  <span>History ({chatHistory.length})</span>
+                                  {showChatHistory ? (
+                                    <FiChevronUp className="w-3 h-3" />
+                                  ) : (
+                                    <FiChevronDown className="w-3 h-3" />
+                                  )}
+                                </button>
+                                
+                                {/* Chat History Dropdown */}
+                                {showChatHistory && (
+                                  <div className="absolute top-full right-0 mt-2 w-80 bg-black border border-white/20 rounded-lg shadow-xl z-50 max-h-96 overflow-y-auto">
+                                    {chatHistory.length === 0 ? (
+                                      <div className="p-4 text-center text-white/60">
+                                        <FiClock className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                                        <p className="text-sm">No chat history yet</p>
+                                        <p className="text-xs mt-1">Start a conversation to see it here</p>
+                                      </div>
+                                    ) : (
+                                      <div className="p-2">
+                                        <div className="text-xs text-white/60 p-2 border-b border-white/10 mb-2">
+                                          Recent Conversations
+                                        </div>
+                                        {chatHistory.map((chat) => (
+                                          <div
+                                            key={chat.id}
+                                            className={`p-3 rounded-lg mb-2 border transition-all cursor-pointer group ${
+                                              currentChatId === chat.id 
+                                                ? 'bg-blue-500/20 border-blue-500/30' 
+                                                : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'
+                                            }`}
+                                            onClick={() => loadChatSession(chat)}
+                                          >
+                                            <div className="flex items-start justify-between">
+                                              <div className="flex-1 min-w-0">
+                                                <h4 className="text-sm font-medium text-white truncate mb-1">
+                                                  {chat.title}
+                                                </h4>
+                                                <div className="flex items-center space-x-2 text-xs text-white/60">
+                                                  <span>{formatChatTimestamp(chat.timestamp)}</span>
+                                                  <span>•</span>
+                                                  <span>{chat.messageCount} messages</span>
+                                                </div>
+                                              </div>
+                                              <button
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  deleteChatSession(chat.id);
+                                                }}
+                                                className="opacity-0 group-hover:opacity-100 p-1 text-white/40 hover:text-red-400 transition-all rounded"
+                                                title="Delete Chat"
+                                              >
+                                                <FiTrash2 className="w-3 h-3" />
+                                              </button>
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            
+                            <div className="text-xs text-white/60">
+                              Powered by OpenAI
+                            </div>
                           </div>
                         </div>
                         <p className="text-sm text-white/60 mt-2">
@@ -1140,6 +1934,24 @@ export default function TranscriptView() {
                       
                       {/* Chat Messages */}
                       <div ref={chatMessagesRef} className="h-96 overflow-y-auto p-4 space-y-4">
+                        {/* Chat Session Indicator */}
+                        {currentChatId && (
+                          <div className="flex items-center justify-center mb-4">
+                            <div className="bg-blue-500/20 border border-blue-500/30 rounded-lg px-3 py-2">
+                              <div className="flex items-center space-x-2 text-xs text-blue-300">
+                                <FiClock className="w-3 h-3" />
+                                <span>Viewing saved chat session</span>
+                                <button
+                                  onClick={startNewChat}
+                                  className="text-blue-400 hover:text-blue-300 underline"
+                                >
+                                  Start new
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        
                         {chatMessages.length === 0 ? (
                           <div className="text-center text-white/60 py-8">
                             <FiMessageSquare className="w-12 h-12 mx-auto mb-4 opacity-50" />
@@ -1154,7 +1966,16 @@ export default function TranscriptView() {
                                   ? 'bg-white text-black' 
                                   : 'bg-white/10 text-white'
                               }`}>
-                                <div className="text-sm whitespace-pre-wrap">{message.content}</div>
+                                {message.role === 'user' ? (
+                                  <div className="text-sm whitespace-pre-wrap">{message.content}</div>
+                                ) : (
+                                  <div 
+                                    className="text-sm" 
+                                    dangerouslySetInnerHTML={{ 
+                                      __html: formatAIResponse(message.content) 
+                                    }}
+                                  />
+                                )}
                                 <div className="text-xs opacity-60 mt-1">
                                   {new Date(message.timestamp).toLocaleTimeString()}
                                 </div>
