@@ -437,7 +437,7 @@ export default function Dashboard() {
               
               <div className="space-y-4">
                 {recentFiles.length > 0 ? (
-                  recentFiles.map((file) => (
+                  recentFiles.slice(0, 2).map((file) => (
                     <FileCard 
                       key={file.id} 
                       file={file} 
