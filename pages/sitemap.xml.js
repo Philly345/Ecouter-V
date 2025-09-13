@@ -1,4 +1,4 @@
-import { blogPosts } from '../data/blogPosts';
+import { blogPosts } from '../data/blogPosts.js';
 
 const generateSiteMap = () => {
   const baseUrl = 'https://ecoutertranscribe.tech';

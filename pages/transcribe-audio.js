@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import { useAuth } from '../lib/auth';
+import { useAuth } from '../components/AuthContext';
 import Navbar from '../components/Navbar';
 import FloatingBubbles from '../components/FloatingBubbles';
 import SEO from '../components/SEO';
