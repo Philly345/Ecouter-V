@@ -68,36 +68,44 @@ export default function Home({ user, onLogout }) {
 
   const faqs = [
     {
+      question: 'How to transcribe audio for free?',
+      answer: 'Upload your audio file to Ecouter and our AI will transcribe it for free instantly. We support MP3, WAV, M4A, FLAC, AAC and all major audio formats with no cost or signup required.'
+    },
+    {
       question: 'Is Ecouter Transcribe really free to use?',
       answer: 'Yes, Ecouter Transcribe is completely free to use with no hidden costs. There are no premium services, subscriptions, or credit card requirements. You can transcribe your audio and video files without any limitations.'
     },
     {
-      question: 'What file formats are supported?',
-      answer: 'We support all major audio formats (MP3, WAV, M4A, FLAC, AAC) and video formats (MP4, MOV, AVI, MKV, WMV).'
+      question: 'What is the best AI transcription software?',
+      answer: 'Ecouter provides the best free AI transcription with 98% accuracy, speaker identification, and support for 120+ languages. Unlike other services, we offer unlimited transcription completely free.'
     },
     {
-      question: 'How accurate is the transcription?',
-      answer: 'Our AI achieves 95%+ accuracy for clear audio with minimal background noise. Results improve with high-quality recordings.'
+      question: 'Can I transcribe video files with AI?',
+      answer: 'Yes, you can transcribe video files (MP4, MOV, AVI, MKV, WMV) with our AI. We extract audio automatically and provide accurate transcription with speaker identification and timestamps.'
     },
     {
-      question: 'Is my data secure?',
-      answer: 'Yes, all files are encrypted during upload and processing. We never share your content with third parties.'
+      question: 'How accurate is AI transcription?',
+      answer: 'Our AI achieves 98% accuracy for clear audio with minimal background noise. The transcription quality improves with high-quality recordings and supports 120+ languages worldwide.'
     },
     {
-      question: 'What\'s the maximum file size?',
-      answer: 'You can upload files up to 500MB or 4 hours of audio/video content.'
+      question: 'What languages can I transcribe with AI?',
+      answer: 'You can transcribe audio in 120+ languages including English, Spanish, French, German, Chinese, Japanese, Arabic, Hindi, and many more. Our AI automatically detects the language.'
     },
     {
-      question: 'Do you offer speaker identification?',
-      answer: 'Yes, our advanced AI can identify and label up to 10 different speakers in your audio.'
+      question: 'Is my data secure when I transcribe files?',
+      answer: 'Yes, all files are encrypted during upload and transcription processing. We never share your content with third parties and automatically delete files after processing.'
+    },
+    {
+      question: 'Do you offer speaker identification in transcription?',
+      answer: 'Yes, our advanced AI can identify and label up to 10 different speakers in your audio during transcription. This feature is included free with all transcriptions.'
     },
   ];
 
   return (
     <>
       <SEO 
-        title="Ecouter: Free AI Transcription & Speaker ID"
-        description="Free unlimited AI transcription with speaker identification, sentiment analysis & summaries. 120+ languages, 98% accuracy. Perfect for meetings, interviews & Zoom calls."
+        title="Transcribe Audio & Video Free with AI | Ecouter - 120+ Languages"
+        description="Transcribe audio and video files for free with AI. Advanced transcription service with speaker identification, sentiment analysis & summaries. Transcribe with AI in 120+ languages instantly."
         url="https://ecoutertranscribe.tech"
         faqData={faqs.map(faq => ({ question: faq.question, answer: faq.answer }))}
       />
@@ -112,16 +120,16 @@ export default function Home({ user, onLogout }) {
             {/* Main Headline */}
             <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold mb-6 sm:mb-10 text-white leading-tight mobile-heading">
               <div className="mb-1 sm:mb-2">
-                <T>Transform Audio into</T>
+                <T>Transcribe Audio & Video with</T>
               </div>
               <div className="text-gray-200" style={{ minHeight: '1.2em' }}>
-                <T fallback="Intelligent Insights">Intelligent Insights</T>
+                <T fallback="Free AI Technology">Free AI Technology</T>
               </div>
             </h1>
 
             {/* Subtitle */}
             <p className="text-base sm:text-xl md:text-2xl text-gray-400 mb-8 sm:mb-16 max-w-4xl mx-auto leading-relaxed px-2">
-              <T>Advanced AI-powered transcription with speaker identification, sentiment analysis, and intelligent summaries. Upload your audio and get professional results in minutes.</T>
+              <T>Free AI transcription service to transcribe audio and video files with speaker identification, sentiment analysis, and intelligent summaries. Transcribe with AI in 120+ languages instantly.</T>
             </p>
 
             {/* CTA Button */}
