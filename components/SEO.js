@@ -208,35 +208,11 @@ export default function SEO({
     ]
   };
 
-  // Dynamic FAQ Schema - only if FAQ data is provided, otherwise use default
-  const defaultFaqData = [
-    {
-      question: "Is Ecouter Transcribe available worldwide?",
-      answer: "Yes, Ecouter works worldwide and supports 120+ languages including multilingual transcription for global meetings."
-    },
-    {
-      question: "What languages does Ecouter support for transcription?",
-      answer: "Our AI supports 120+ languages including English, Spanish, French, German, Chinese, Japanese, and all major world languages for multilingual transcription."
-    },
-    {
-      question: "Is Ecouter Transcribe completely free?",
-      answer: "Yes, Ecouter is 100% free with unlimited meeting transcription forever. Perfect for Zoom calls, interviews, and business meetings."
-    },
-    {
-      question: "What are the main features of Ecouter meeting transcription software?",
-      answer: "AI transcription, speaker identification, sentiment analysis, meeting summaries, and Zoom transcription integration."
-    },
-    {
-      question: "What file formats can I export my transcripts to?",
-      answer: "Export meeting transcriptions in TXT, PDF, Word, and SRT subtitle formats for easy sharing and collaboration."
-    }
-  ];
-
-  // Use provided FAQ data or fall back to default, but only create ONE FAQPage schema
-  const finalFaqData = {
+  // Dynamic FAQ Schema - only if FAQ data is provided
+  const finalFaqData = hasFaqs ? {
     "@context": "https://schema.org",
     "@type": "FAQPage",
-    "mainEntity": (hasFaqs ? faqData : defaultFaqData).map(faq => ({
+    "mainEntity": faqData.map(faq => ({
       "@type": "Question",
       "name": faq.question,
       "acceptedAnswer": {
@@ -244,7 +220,7 @@ export default function SEO({
         "text": faq.answer
       }
     }))
-  };
+  } : null;
 
   const websiteStructuredData = {
     "@context": "https://schema.org",
@@ -284,7 +260,7 @@ export default function SEO({
       websiteStructuredData,
       breadcrumbStructuredData,
       finalFaqData
-    ].filter(Boolean) // Remove null values
+    ].filter(Boolean) // Remove null values including finalFaqData when null
   };
 
   return (
