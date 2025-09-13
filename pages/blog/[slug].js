@@ -4,7 +4,7 @@ import { useAuth } from '../../components/AuthContext';
 import Navbar from '../../components/Navbar';
 import FloatingBubbles from '../../components/FloatingBubbles';
 import SEO from '../../components/SEO';
-import { blogPosts } from '../../data/blogPosts.js';
+import blogPosts from '../../data/blogPosts';
 import { FiClock, FiUser, FiTag, FiArrowLeft, FiShare2, FiBookmark } from 'react-icons/fi';
 import ReactMarkdown from 'react-markdown';
 
