@@ -431,7 +431,7 @@ ${fallbackData.instructions?.maryTTSInstall?.windows?.join('\n') || 'Visit MaryT
   return (
     <>
       <Head>
-        <title><T>PDF to Dialogue</T> | Ecouter</title>
+        <title>PDF to Dialogue - Ecouter Transcribe</title>
       </Head>
 
       <div className="min-h-screen flex bg-black text-white">

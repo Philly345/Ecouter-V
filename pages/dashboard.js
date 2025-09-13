@@ -318,7 +318,7 @@ export default function Dashboard() {
   return (
     <>
       <Head>
-        <title><T>Dashboard</T> - Ecouter Transcribe</title>
+        <title>Dashboard - Ecouter Transcribe</title>
         <meta name="description" content="View your transcription analytics and recent files." />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>

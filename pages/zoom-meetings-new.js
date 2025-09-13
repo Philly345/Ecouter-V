@@ -215,7 +215,7 @@ export default function ZoomMeetingNotes() {
   return (
     <>
       <Head>
-        <title><T>Zoom Meeting Notes</T> - Ecouter Transcribe</title>
+        <title>Zoom Meeting Notes - Ecouter Transcribe</title>
         <meta name="description" content="Automatically record, transcribe, and summarize your Zoom meetings with AI-powered note-taking." />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
