@@ -4,7 +4,7 @@ import { useAuth } from '../../components/AuthContext';
 import Navbar from '../../components/Navbar';
 import FloatingBubbles from '../../components/FloatingBubbles';
 import SEO from '../../components/SEO';
-import blogPosts from '../../data/blogPosts';
+import blogPosts from '../../lib/blogPosts';
 import { FiClock, FiUser, FiTag, FiSearch, FiBookOpen } from 'react-icons/fi';
 
 export default function Blog() {
