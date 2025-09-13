@@ -14,7 +14,7 @@ import {
   FiUser, 
   FiPlay, 
   FiPause, 
-  FiStop, 
+  FiSquare, 
   FiDownload, 
   FiLoader, 
   FiX, 
@@ -582,7 +582,7 @@ export default function ZoomMeetingNotes() {
                       onClick={disconnectFromMeeting}
                       className="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
                     >
-                      <FiStop className="w-4 h-4" />
+                      <FiSquare className="w-4 h-4" />
                       <T>Leave Meeting</T>
                     </button>
                   </div>

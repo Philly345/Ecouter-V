@@ -6,7 +6,7 @@ import Modal from '../components/Modal';
 import T from '../components/T';
 import SEO from '../components/SEO';
 import { useAuth } from '../components/AuthContext';
-import { FiMic, FiMicOff, FiDownload, FiPlay, FiStop, FiUsers, FiFileText, FiLink, FiVideo, FiX, FiMessageSquare, FiRefreshCw, FiEye, FiEyeOff, FiZap, FiActivity, FiCheck, FiCalendar, FiUser } from 'react-icons/fi';
+import { FiMic, FiMicOff, FiDownload, FiPlay, FiSquare, FiUsers, FiFileText, FiLink, FiVideo, FiX, FiMessageSquare, FiRefreshCw, FiEye, FiEyeOff, FiZap, FiActivity, FiCheck, FiCalendar, FiUser } from 'react-icons/fi';
 
 export default function ZoomMeetingNotes() {
   const router = useRouter();
@@ -516,7 +516,7 @@ export default function ZoomMeetingNotes() {
                     onClick={stopTranscription}
                     className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-3 rounded-lg transition-all duration-300 flex items-center justify-center gap-2"
                   >
-                    <FiStop size={16} className="text-gray-400" />
+                    <FiSquare size={16} className="text-gray-400" />
                     <T>Stop</T>
                   </button>
                 )}

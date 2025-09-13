@@ -15,7 +15,7 @@ import {
   FiDownload,
   FiPlay,
   FiPause,
-  FiStop,
+  FiSquare,
   FiSettings,
   FiRefreshCw,
   FiFileText,
@@ -360,7 +360,7 @@ export default function ZoomMeetingNotes() {
                     onClick={endRecording}
                     className="w-full bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
                   >
-                    <FiStop className="w-4 h-4" />
+                    <FiSquare className="w-4 h-4" />
                     <span><T>End Recording</T></span>
                   </button>
                 </div>
