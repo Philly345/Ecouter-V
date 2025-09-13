@@ -596,7 +596,7 @@ export default function LiveTranscription() {
   return (
     <>
       <Head>
-        <title><T>Live Transcription</T> | Ecouter</title>
+        <title>Live Transcription | Ecouter</title>
       </Head>
 
       <div className="min-h-screen flex bg-black text-white">

@@ -219,7 +219,7 @@ export default function LiveTranscriptionSessions() {
   return (
     <>
       <Head>
-        <title><T>Live Transcription Sessions</T> | Ecouter</title>
+        <title>Live Transcription Sessions | Ecouter</title>
       </Head>
 
       <div className="min-h-screen flex bg-black text-white">
