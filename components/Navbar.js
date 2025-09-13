@@ -102,6 +102,9 @@ const Navbar = ({ user, onLogout }) => {
                 <Link href="/features" className="text-sm text-white/80 hover:text-white transition-colors">
                   <T>Features</T>
                 </Link>
+                <Link href="/blog" className="text-sm text-white/80 hover:text-white transition-colors">
+                  <T>Blog</T>
+                </Link>
                 <Link href="/help" className="text-sm text-white/80 hover:text-white transition-colors">
                   <T>Help Center</T>
                 </Link>
@@ -173,6 +176,9 @@ const Navbar = ({ user, onLogout }) => {
                   <>
                     <Link href="/features" className="block py-2 text-base text-white/90 hover:text-white font-medium">
                       <T>Features</T>
+                    </Link>
+                    <Link href="/blog" className="block py-2 text-base text-white/90 hover:text-white font-medium">
+                      <T>Blog</T>
                     </Link>
                     <Link href="/help" className="block py-2 text-base text-white/90 hover:text-white font-medium">
                       <T>Help Center</T>

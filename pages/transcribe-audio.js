@@ -138,7 +138,7 @@ export default function TranscribeAudio() {
             </h1>
             <p className="text-xl text-gray-400 max-w-3xl mx-auto mb-12">
               Upload your audio files and get accurate transcription with speaker identification in minutes. 
-              Supports MP3, WAV, M4A, FLAC, AAC and 120+ languages. Completely free, no signup required.
+              Supports MP3, WAV, M4A, FLAC, AAC and 120+ languages. Completely free with advanced AI features.
             </p>
 
             {/* Upload Area */}
@@ -284,7 +284,7 @@ export default function TranscribeAudio() {
               </div>
               <div className="flex items-center space-x-2">
                 <FiCheck className="text-green-400" />
-                <span>No Signup Required</span>
+                <span>AI-Powered Features</span>
               </div>
               <div className="flex items-center space-x-2">
                 <FiCheck className="text-green-400" />

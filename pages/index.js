@@ -305,6 +305,9 @@ export default function Home({ user, onLogout }) {
                   <li><Link href="/features" className="hover:text-white transition-colors">
                     <T>Features</T>
                   </Link></li>
+                  <li><Link href="/blog" className="hover:text-white transition-colors">
+                    <T>Blog</T>
+                  </Link></li>
                 </ul>
               </div>
 
